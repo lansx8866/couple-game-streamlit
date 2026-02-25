@@ -18,110 +18,198 @@ QUESTION_BANK = {
 REWARD = ["捏肩10分钟", "承包家务", "买奶茶", "抱抱5分钟", "今天听你的", "手写情书"]
 PUNISH = ["学小猫叫", "讲冷笑话", "深蹲10个", "夸对方10句", "洗水果", "模仿口头禅"]
 
-# ======================= 核心：100%能转的转盘代码 =======================
-def get_working_wheel(items, is_reward):
-    # 颜色配置
-    color = "pink" if is_reward else "orange"
+# ======================= 高级物理动画转盘（核心修复+升级） =======================
+def get_advanced_wheel(items, is_reward):
+    """高级物理动画转盘：带惯性、摩擦、精准停位"""
+    # 颜色渐变配置（更高级的配色）
+    reward_colors = [
+        "#FF6B9E", "#FF85A1", "#FF9Ea4", "#FFB7A7", "#FFD0AA", "#FFE9AD"
+    ]
+    punish_colors = [
+        "#FF9500", "#FFA726", "#FFB74D", "#FFC107", "#FFCA28", "#FFD54F"
+    ]
+    colors = reward_colors if is_reward else punish_colors
     
-    # 直接写死6个扇区的转盘（最稳定）
+    # 生成6个扇区的HTML（固定角度）
+    sectors = []
+    angles = [0, 60, 120, 180, 240, 300]
+    for i, (angle, text) in enumerate(zip(angles, items)):
+        rotate_text = angle + 30  # 文字旋转角度
+        sectors.append(f"""
+            <div class="sector" style="
+                transform: rotate({angle}deg);
+                background: {colors[i]};
+            ">
+                <div class="sector-text" style="transform: rotate({rotate_text}deg)">
+                    {text}
+                </div>
+            </div>
+        """)
+    
+    # 高级动画转盘完整代码（修复语法错误+物理动画）
     wheel_html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="zh-CN">
     <head>
+        <meta charset="UTF-8">
         <style>
-            /* 转盘容器 */
-            .wheel {{
-                width: 300px;
-                height: 300px;
-                border-radius: 50%;
-                position: relative;
-                margin: 0 auto;
-                overflow: hidden;
-                border: 5px solid #333;
-                transition: transform 3s ease-out; /* 核心：3秒旋转动画 */
-                transform-origin: center;
+            * {{
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }}
-            /* 扇区样式 */
-            .slice {{
-                position: absolute;
+            .wheel-container {{
+                position: relative;
+                width: 350px;
+                height: 350px;
+                margin: 0 auto;
+            }}
+            /* 转盘主体（高级样式） */
+            .wheel {{
                 width: 100%;
                 height: 100%;
-                clip-path: polygon(50% 50%, 50% 0%, 100% 0%);
+                border-radius: 50%;
+                position: relative;
+                overflow: hidden;
+                border: 8px solid #212121;
+                box-shadow: 
+                    0 0 0 4px #f5f5f5,
+                    0 0 20px rgba(0,0,0,0.3),
+                    inset 0 0 10px rgba(0,0,0,0.2);
+                transform-origin: center;
+                transition: none; /* 关闭默认过渡，用JS控制物理动画 */
+            }}
+            /* 扇区样式 */
+            .sector {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%);
                 transform-origin: center;
                 display: flex;
                 align-items: flex-start;
                 justify-content: center;
-                padding-top: 20px;
-                box-sizing: border-box;
+                padding-top: 25px;
+                border: 1px solid rgba(255,255,255,0.3);
             }}
-            /* 扇区文字 */
-            .slice span {{
-                color: white;
-                font-weight: bold;
-                font-size: 12px;
-                transform: rotate(var(--rotate));
+            /* 扇区文字（高级排版） */
+            .sector-text {{
+                color: #212121;
+                font-weight: 600;
+                font-size: 13px;
                 white-space: nowrap;
+                transform-origin: 0 140px;
+                text-shadow: 0 1px 2px rgba(255,255,255,0.8);
             }}
-            /* 指针 */
+            /* 高级指针（带阴影+高光） */
             .pointer {{
                 position: absolute;
-                top: -10px;
+                top: -20px;
                 left: 50%;
                 transform: translateX(-50%);
                 width: 0;
                 height: 0;
+                border-left: 20px solid transparent;
+                border-right: 20px solid transparent;
+                border-bottom: 40px solid #F44336;
+                z-index: 10;
+                filter: drop-shadow(0 3px 3px rgba(0,0,0,0.4));
+                clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+            }}
+            .pointer::after {{
+                content: '';
+                position: absolute;
+                top: 5px;
+                left: -15px;
+                width: 0;
+                height: 0;
                 border-left: 15px solid transparent;
                 border-right: 15px solid transparent;
-                border-bottom: 30px solid red;
-                z-index: 10;
+                border-bottom: 30px solid #FFCDD2;
             }}
-            /* 中心圆点 */
-            .center {{
+            /* 中心按钮（可点击） */
+            .center-btn {{
                 position: absolute;
-                width: 25px;
-                height: 25px;
-                background: white;
-                border: 3px solid #333;
+                width: 40px;
+                height: 40px;
+                background: linear-gradient(#fff, #e0e0e0);
+                border: 4px solid #212121;
                 border-radius: 50%;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
                 z-index: 5;
+                cursor: pointer;
+                box-shadow: 
+                    0 2px 5px rgba(0,0,0,0.3),
+                    inset 0 -2px 5px rgba(0,0,0,0.1),
+                    inset 0 2px 5px rgba(255,255,255,0.8);
+            }}
+            .center-btn:active {{
+                box-shadow: 
+                    0 1px 2px rgba(0,0,0,0.3),
+                    inset 0 -1px 2px rgba(0,0,0,0.1),
+                    inset 0 1px 2px rgba(255,255,255,0.8);
+                transform: translate(-50%, -50%) scale(0.95);
             }}
         </style>
     </head>
     <body>
-        <div style="position: relative; width: 300px; margin: 0 auto;">
+        <div class="wheel-container">
             <div class="pointer"></div>
             <div id="wheel" class="wheel">
-                <!-- 6个扇区（固定角度） -->
-                <div class="slice" style="transform: rotate(0deg); background: {color}; --rotate: 30deg;">
-                    <span>{items[0]}</span>
-                </div>
-                <div class="slice" style="transform: rotate(60deg); background: {color}88; --rotate: 90deg;">
-                    <span>{items[1]}</span>
-                </div>
-                <div class="slice" style="transform: rotate(120deg); background: {color}; --rotate: 150deg;">
-                    <span>{items[2]}</span>
-                </div>
-                <div class="slice" style="transform: rotate(180deg); background: {color}88; --rotate: 210deg;">
-                    <span>{items[3]}</span>
-                </div>
-                <div class="slice" style="transform: rotate(240deg); background: {color}; --rotate: 270deg;">
-                    <span>{items[4]}</span>
-                </div>
-                <div class="slice" style="transform: rotate(300deg); background: {color}88; --rotate: 330deg;">
-                    <span>{items[5]}</span>
-                </div>
+                {''.join(sectors)}
             </div>
-            <div class="center"></div>
+            <div class="center-btn"></div>
         </div>
 
         <script>
-            // 全局旋转函数（外部可调用）
-            window.startSpin = function(degrees) {{
-                const wheel = document.getElementById('wheel');
-                wheel.style.transform = `rotate(${degrees}deg)`;
+            // 高级物理动画参数
+            const wheel = document.getElementById('wheel');
+            let isSpinning = false;
+            let currentAngle = 0;
+            let targetAngle = 0;
+            let velocity = 0;
+            const friction = 0.98; // 摩擦系数
+            const acceleration = 5; // 加速度
+            
+            // 物理动画核心函数
+            function animateWheel() {{
+                if (isSpinning) {{
+                    // 加速阶段
+                    if (velocity < 30) {{
+                        velocity += acceleration;
+                    }}
+                    // 减速阶段（接近目标角度）
+                    const angleDiff = Math.abs(targetAngle - currentAngle) % 360;
+                    if (angleDiff < 360 && velocity > 0.5) {{
+                        velocity *= friction;
+                    }} else if (velocity <= 0.5) {{
+                        velocity = 0;
+                        currentAngle = targetAngle;
+                        isSpinning = false;
+                    }}
+                    
+                    currentAngle += velocity;
+                    wheel.style.transform = 'rotate(' + currentAngle + 'deg)';
+                    requestAnimationFrame(animateWheel);
+                }}
+            }}
+            
+            // 外部调用的旋转函数（修复语法错误：用+拼接字符串）
+            window.startAdvancedSpin = function(targetIndex) {{
+                if (isSpinning) return;
+                
+                const sectorAngle = 60; // 每个扇区60度
+                // 目标角度：8圈 + 精准停在扇区中心
+                targetAngle = currentAngle + 8 * 360 + (360 - (targetIndex * sectorAngle + sectorAngle/2));
+                isSpinning = true;
+                velocity = 0;
+                
+                // 启动物理动画
+                animateWheel();
             }};
         </script>
     </body>
@@ -203,7 +291,7 @@ elif st.session_state.step == 3:
             st.session_state.step = 4
             st.rerun()
 
-# 步骤4：抽奖转盘（核心：100%能转）
+# 步骤4：高级动画转盘（核心修复）
 elif st.session_state.step == 4:
     ok = st.session_state.result
     items = REWARD if ok else PUNISH
@@ -217,35 +305,44 @@ elif st.session_state.step == 4:
     else:
         st.warning("😜 默契不足！抽惩罚")
     
-    # 显示转盘（核心）
-    st.subheader("🎡 抽奖转盘", divider="violet")
-    wheel_html = get_working_wheel(items, ok)
-    st.components.v1.html(wheel_html, height=350, width=350)
+    # 显示高级动画转盘
+    st.subheader("🎡 高级物理动画转盘", divider="violet")
+    wheel_html = get_advanced_wheel(items, ok)
+    st.components.v1.html(wheel_html, height=400, width=400)
     
     # 旋转按钮
     if not st.session_state.spun:
-        if st.button("🚀 旋转转盘", type="primary", use_container_width=True):
-            # 随机生成旋转角度（5圈+随机停止）
-            random_deg = random.randint(1800, 3600)  # 5-10圈
+        if st.button("🚀 启动高级转盘", type="primary", use_container_width=True):
+            # 随机选择目标扇区
             target_idx = random.randint(0, 5)
             st.session_state.final = items[target_idx]
             
-            # 触发转盘旋转（核心：调用前端JS函数）
-            st.components.v1.html(f"""
-                <script>
-                    window.parent.document.querySelector('iframe').contentWindow.startSpin({random_deg});
-                </script>
-            """, height=0)
+            # 触发高级物理动画（修复JS调用方式）
+            trigger_js = f"""
+            <script>
+                // 找到转盘的iframe并调用旋转函数
+                const iframes = window.parent.document.querySelectorAll('iframe');
+                for (let i = 0; i < iframes.length; i++) {{
+                    try {{
+                        iframes[i].contentWindow.startAdvancedSpin({target_idx});
+                        break;
+                    }} catch (e) {{
+                        continue;
+                    }}
+                }}
+            </script>
+            """
+            st.components.v1.html(trigger_js, height=0)
             
-            # 等待旋转完成
-            time.sleep(3.5)
+            # 等待动画完成
+            time.sleep(8)  # 高级动画持续时间更长
             st.session_state.spun = True
             st.rerun()
     else:
         # 显示结果
-        st.markdown(f"### 🏆 抽到：{st.session_state.final}")
+        st.markdown(f"### 🏆 最终结果：{st.session_state.final}")
         if st.button("🔄 再来一局", use_container_width=True):
-            # 重置状态
+            # 重置所有状态
             for k in list(st.session_state.keys()):
                 del st.session_state[k]
             st.rerun()
