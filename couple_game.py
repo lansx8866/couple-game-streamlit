@@ -86,7 +86,7 @@ def get_svg_wheel(items, is_reward, rotation=0):
             <polygon points="{center},{center-30} {center-15},{center+10} {center+15},{center+10}" 
                      fill="red" stroke="#000" stroke-width="2"/>
             <!-- 指针尖端高亮 -->
-            <circle cx="{center}" cy="{center-30}" r="5" fill="yellow" stroke="#red" stroke-width="1"/>
+            <circle cx="{center}" cy="{center-30}" r="5" fill="yellow" stroke="red" stroke-width="1"/>
         </g>
         
         <!-- 中心圆点（加大） -->
@@ -176,7 +176,7 @@ elif st.session_state.step == 3:
             st.session_state.step = 4
             st.rerun()
 
-# ------------------- 步骤4：可视化转盘抽奖（指针动） -------------------
+# ------------------- 步骤4：可视化转盘抽奖（修复语法错误） -------------------
 elif st.session_state.step == 4:
     ok = st.session_state.result
     items = REWARD if ok else PUNISH
@@ -193,16 +193,15 @@ elif st.session_state.step == 4:
         else:
             st.warning("😜 默契不足！开启惩罚转盘～")
     
-    # 转盘区域
+    # 转盘区域（核心修复：不用placeholder链式调用）
     st.subheader("🎡 可视化转盘抽奖", divider="violet")
-    wheel_placeholder = st.empty()
     
-    # 初始转盘（指针在顶部）
-    svg = get_svg_wheel(items, ok, st.session_state.rotation)
-    wheel_placeholder.components.v1.html(svg, height=380)
-    
-    # 未抽奖时显示旋转按钮
+    # 未抽奖/动画中
     if not st.session_state.spun and not st.session_state.animating:
+        # 初始转盘（指针在顶部）
+        svg = get_svg_wheel(items, ok, st.session_state.rotation)
+        st.components.v1.html(svg, height=380)
+        
         if st.button("🚀 旋转转盘", type="primary", use_container_width=True):
             st.session_state.animating = True
             target_idx = random.randint(0, 5)
@@ -210,26 +209,31 @@ elif st.session_state.step == 4:
             total_rotation = 10 * 360 + (360 - target_idx * 60)
             st.session_state.final = items[target_idx]
             
+            # 清空当前转盘，准备动画
+            st.empty()
+            
             # 分阶段动画：先快后慢（更真实）
             with st.spinner("转盘旋转中..."):
                 # 快速旋转阶段（前8圈）
                 for r in range(0, 8*360, 20):
                     st.session_state.rotation = r
                     svg = get_svg_wheel(items, ok, r)
-                    wheel_placeholder.components.v1.html(svg, height=380)
+                    st.components.v1.html(svg, height=380)
                     time.sleep(0.005)
+                    st.empty()  # 清空上一帧
                 
                 # 减速阶段（后2圈）
                 for r in range(8*360, total_rotation, 5):
                     st.session_state.rotation = r
                     svg = get_svg_wheel(items, ok, r)
-                    wheel_placeholder.components.v1.html(svg, height=380)
+                    st.components.v1.html(svg, height=380)
                     time.sleep(0.02)
+                    st.empty()  # 清空上一帧
             
-            # 最终停止
+            # 最终停止（显示最终转盘）
             st.session_state.rotation = total_rotation
-            svg = get_svg_wheel(items, ok, total_rotation)
-            wheel_placeholder.components.v1.html(svg, height=380)
+            final_svg = get_svg_wheel(items, ok, total_rotation)
+            st.components.v1.html(final_svg, height=380)
             
             st.session_state.spun = True
             st.session_state.animating = False
@@ -237,7 +241,12 @@ elif st.session_state.step == 4:
     
     # 抽奖完成显示结果
     elif st.session_state.spun:
+        # 显示最终停止的转盘
+        final_svg = get_svg_wheel(items, ok, st.session_state.rotation)
+        st.components.v1.html(final_svg, height=380)
+        
         st.markdown(f"### 🏆 最终结果：\n## {st.session_state.final}")
+        
         if st.button("🔄 再来一局", use_container_width=True):
             # 重置所有状态
             for k in list(st.session_state.keys()):
