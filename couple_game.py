@@ -1,5 +1,6 @@
 import streamlit as st
 import random
+import time
 
 # ---------- 题库配置（可后端编辑） ----------
 questions_db = [
@@ -44,7 +45,7 @@ questions_db = [
         "id": 6,
         "category": "缺点",
         "question": "你认为对方最需要改进的三个缺点是？",
-        "options": ["懒散", "急躁", "健忘", "优柔寡断", "敏感", "爱抱怨", "冲动", "嘴硬", "玻璃心"],
+        "options": ["懒散", "急躁", "健忘", "优柔寡断", "敏感", "爱抱怨", "冲动", "嘴硬", "玻璃心", "拖延"],
         "type": "multi"
     },
     # 一起做的事 (single)
@@ -171,12 +172,14 @@ punishments = [
 
 # ---------- 初始化 session state ----------
 if "stage" not in st.session_state:
-    st.session_state.stage = "player1"          # 游戏阶段：player1, player2, result
+    st.session_state.stage = "player1"          # 游戏阶段：player1, player2, spin, result
     st.session_state.selected_category = None
     st.session_state.selected_question = None
     st.session_state.correct_answers = None     # 玩家1设定的正确答案
     st.session_state.player2_answers = None      # 玩家2提交的答案
-    st.session_state.result = None                # 对错结果和转盘结果
+    st.session_state.is_correct = None           # 玩家2是否答对
+    st.session_state.spin_result = None          # 转盘结果
+    st.session_state.spin_pool = None             # 当前转盘池（奖励或惩罚列表）
 
 # ---------- 辅助函数 ----------
 def get_question_by_id(qid):
@@ -207,8 +210,10 @@ if st.session_state.stage == "player1":
     st.header("👨 玩家1：出题阶段")
 elif st.session_state.stage == "player2":
     st.header("👩 玩家2：答题阶段")
+elif st.session_state.stage == "spin":
+    st.header("🎲 转盘抽奖")
 else:
-    st.header("🎲 结果揭晓")
+    st.header("🏆 游戏结束")
 
 st.markdown("---")
 
@@ -232,7 +237,6 @@ if st.session_state.stage == "player1":
 
     if question["type"] == "multi":
         st.write("请选择 **三个** 优点/缺点（作为正确答案）：")
-        # 用 multiselect 并限制最多选3个
         correct = st.multiselect(
             "选择三个选项",
             question["options"],
@@ -252,7 +256,7 @@ if st.session_state.stage == "player1":
             "选择一个选项",
             question["options"],
             key="correct_single",
-            index=None  # 默认无选择
+            index=None
         )
         if correct is None:
             st.warning("请选择一个选项")
@@ -283,15 +287,14 @@ elif st.session_state.stage == "player2":
                 # 判断对错
                 correct = st.session_state.correct_answers
                 is_correct = check_answer(question, correct, player2)
-                # 随机抽取奖励/惩罚
+                st.session_state.is_correct = is_correct
+                # 根据对错设置转盘池
                 if is_correct:
-                    outcome = random.choice(rewards)
-                    result_text = f"✅ 答对啦！恭喜获得奖励：**{outcome}**"
+                    st.session_state.spin_pool = rewards
                 else:
-                    outcome = random.choice(punishments)
-                    result_text = f"❌ 哎呀答错了！接受惩罚：**{outcome}**"
-                st.session_state.result = result_text
-                st.session_state.stage = "result"
+                    st.session_state.spin_pool = punishments
+                st.session_state.spin_result = None  # 清空之前结果
+                st.session_state.stage = "spin"
                 st.rerun()
     else:
         st.write("请选择一个选项：")
@@ -308,37 +311,73 @@ elif st.session_state.stage == "player2":
                 st.session_state.player2_answers = player2
                 correct = st.session_state.correct_answers
                 is_correct = check_answer(question, correct, player2)
+                st.session_state.is_correct = is_correct
                 if is_correct:
-                    outcome = random.choice(rewards)
-                    result_text = f"✅ 答对啦！恭喜获得奖励：**{outcome}**"
+                    st.session_state.spin_pool = rewards
                 else:
-                    outcome = random.choice(punishments)
-                    result_text = f"❌ 哎呀答错了！接受惩罚：**{outcome}**"
-                st.session_state.result = result_text
-                st.session_state.stage = "result"
+                    st.session_state.spin_pool = punishments
+                st.session_state.spin_result = None
+                st.session_state.stage = "spin"
                 st.rerun()
 
-# ---------- 结果显示 ----------
-elif st.session_state.stage == "result":
-    st.subheader(st.session_state.result)
+# ---------- 转盘阶段 ----------
+elif st.session_state.stage == "spin":
+    st.subheader("🎁 转动转盘，看看你的运气！")
+    pool = st.session_state.spin_pool
+    is_correct = st.session_state.is_correct
 
-    # 显示双方答案对比（可选）
-    question = st.session_state.selected_question
-    with st.expander("查看答案详情"):
-        st.write(f"**问题**：{question['question']}")
-        st.write(f"**玩家1的正确答案**：{st.session_state.correct_answers}")
-        st.write(f"**玩家2的答案**：{st.session_state.player2_answers}")
+    if is_correct:
+        st.success("✅ 恭喜你答对了！现在转动奖励转盘～")
+    else:
+        st.error("❌ 很遗憾答错了，转动惩罚转盘吧～")
 
-    if st.button("🔄 再来一局", type="primary"):
-        # 重置状态，保留题库
-        st.session_state.stage = "player1"
-        st.session_state.selected_category = None
-        st.session_state.selected_question = None
-        st.session_state.correct_answers = None
-        st.session_state.player2_answers = None
-        st.session_state.result = None
-        st.rerun()
+    # 显示所有选项（模拟转盘上的格子）
+    st.markdown("**转盘上的选项：**")
+    cols = st.columns(4)
+    for i, item in enumerate(pool):
+        with cols[i % 4]:
+            st.markdown(f"- {item}")
+
+    # 如果还没有旋转结果，显示旋转按钮
+    if st.session_state.spin_result is None:
+        if st.button("🎲 旋转转盘", type="primary"):
+            # 模拟转盘旋转过程（简单动画效果）
+            with st.spinner("转盘转起来啦......"):
+                time.sleep(1)  # 假装旋转
+            # 随机选择一个结果
+            result = random.choice(pool)
+            st.session_state.spin_result = result
+            # 添加一些庆祝效果
+            if is_correct:
+                st.balloons()
+            else:
+                st.snow()
+            st.rerun()
+    else:
+        # 显示旋转结果
+        st.markdown("---")
+        st.subheader(f"✨ 转盘停在了：**{st.session_state.spin_result}**")
+        st.markdown("---")
+
+        # 显示双方答案对比（可选）
+        question = st.session_state.selected_question
+        with st.expander("查看答案详情"):
+            st.write(f"**问题**：{question['question']}")
+            st.write(f"**玩家1的正确答案**：{st.session_state.correct_answers}")
+            st.write(f"**玩家2的答案**：{st.session_state.player2_answers}")
+
+        if st.button("🔄 再来一局", type="primary"):
+            # 重置状态，保留题库
+            st.session_state.stage = "player1"
+            st.session_state.selected_category = None
+            st.session_state.selected_question = None
+            st.session_state.correct_answers = None
+            st.session_state.player2_answers = None
+            st.session_state.is_correct = None
+            st.session_state.spin_result = None
+            st.session_state.spin_pool = None
+            st.rerun()
 
 # 底部说明
 st.markdown("---")
-st.caption("规则：玩家1选择问题并设定正确答案（优点/缺点需选三个，其他单选）。玩家2作答，优点/缺点类需至少猜对两个即算正确，其他需完全一致。正确/错误后随机抽取奖励/惩罚。")
+st.caption("规则：玩家1选择问题并设定正确答案（优点/缺点需选三个，其他单选）。玩家2作答，优点/缺点类需至少猜对两个即算正确，其他需完全一致。正确/错误后通过转盘随机抽取奖励/惩罚。")
