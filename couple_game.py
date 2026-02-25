@@ -18,30 +18,42 @@ QUESTION_BANK = {
 REWARD = ["捏肩10分钟", "承包家务", "买奶茶", "抱抱5分钟", "今天听你的", "手写情书"]
 PUNISH = ["学小猫叫", "讲冷笑话", "深蹲10个", "夸对方10句", "洗水果", "模仿口头禅"]
 
-# ======================= 精准对齐的转盘（核心） =======================
+# ======================= 无报错的精准对齐转盘（核心修复） =======================
 def get_aligned_wheel(items):
-    """生成精准对齐的转盘：扇区角度固定，文字清晰，指针指向准确"""
+    """生成无报错的转盘：纯JS字符串拼接，指针+文字+精准对齐"""
     # 固定6个扇区的颜色（视觉区分）
     colors = [
         "#FF6B9E", "#FF85A1", "#FF9Ea4", 
         "#FFB7A7", "#FFD0AA", "#FFE9AD"
     ]
     
-    # 生成转盘HTML（6个扇区，角度固定，文字居中）
-    wheel_html = f"""
+    # 生成扇区HTML（纯字符串拼接，无模板语法）
+    sector_html = ""
+    angles = [0, 60, 120, 180, 240, 300]
+    text_rotates = [30, 90, 150, 210, 270, 330]
+    for i in range(6):
+        sector_html += f"""
+        <!-- 扇区{i+1}：{angles[i]}° -->
+        <div class="sector" style="transform: rotate({angles[i]}deg); background: {colors[i]}">
+            <div class="sector-text" style="transform: rotate({text_rotates[i]}deg)">{items[i]}</div>
+        </div>
+        """
+    
+    # 完整转盘HTML（移除所有JS模板字符串，改用+拼接）
+    wheel_html = """
     <!DOCTYPE html>
     <html>
     <head>
         <style>
             /* 转盘容器 */
-            .wheel-box {{
+            .wheel-box {
                 position: relative;
                 width: 350px;
                 height: 350px;
                 margin: 0 auto;
-            }}
+            }
             /* 指针（固定在顶部，绝对居中） */
-            .pointer {{
+            .pointer {
                 position: absolute;
                 top: -15px;
                 left: 50%;
@@ -53,9 +65,9 @@ def get_aligned_wheel(items):
                 border-bottom: 40px solid red;
                 z-index: 100;
                 pointer-events: none;
-            }}
+            }
             /* 转盘主体 */
-            .wheel {{
+            .wheel {
                 width: 350px;
                 height: 350px;
                 border-radius: 50%;
@@ -64,9 +76,9 @@ def get_aligned_wheel(items):
                 border: 8px solid #333;
                 transform-origin: center center;
                 transition: transform 4s cubic-bezier(0.2, 0.8, 0.1, 1);
-            }}
+            }
             /* 单个扇区（6个，角度固定） */
-            .sector {{
+            .sector {
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -79,18 +91,18 @@ def get_aligned_wheel(items):
                 align-items: flex-start;
                 padding-top: 30px;
                 box-sizing: border-box;
-            }}
+            }
             /* 扇区文字（清晰显示，旋转对齐） */
-            .sector-text {{
+            .sector-text {
                 color: #222;
                 font-size: 14px;
                 font-weight: bold;
                 white-space: nowrap;
                 transform-origin: 0 140px;
                 text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-            }}
+            }
             /* 中心圆点 */
-            .center {{
+            .center {
                 position: absolute;
                 width: 40px;
                 height: 40px;
@@ -101,49 +113,27 @@ def get_aligned_wheel(items):
                 left: 50%;
                 transform: translate(-50%, -50%);
                 z-index: 50;
-            }}
+            }
         </style>
     </head>
     <body>
         <div class="wheel-box">
             <div class="pointer"></div>
             <div id="wheel" class="wheel">
-                <!-- 扇区1：0° -->
-                <div class="sector" style="transform: rotate(0deg); background: {colors[0]}">
-                    <div class="sector-text" style="transform: rotate(30deg)">{items[0]}</div>
-                </div>
-                <!-- 扇区2：60° -->
-                <div class="sector" style="transform: rotate(60deg); background: {colors[1]}">
-                    <div class="sector-text" style="transform: rotate(90deg)">{items[1]}</div>
-                </div>
-                <!-- 扇区3：120° -->
-                <div class="sector" style="transform: rotate(120deg); background: {colors[2]}">
-                    <div class="sector-text" style="transform: rotate(150deg)">{items[2]}</div>
-                </div>
-                <!-- 扇区4：180° -->
-                <div class="sector" style="transform: rotate(180deg); background: {colors[3]}">
-                    <div class="sector-text" style="transform: rotate(210deg)">{items[3]}</div>
-                </div>
-                <!-- 扇区5：240° -->
-                <div class="sector" style="transform: rotate(240deg); background: {colors[4]}">
-                    <div class="sector-text" style="transform: rotate(270deg)">{items[4]}</div>
-                </div>
-                <!-- 扇区6：300° -->
-                <div class="sector" style="transform: rotate(300deg); background: {colors[5]}">
-                    <div class="sector-text" style="transform: rotate(330deg)">{items[5]}</div>
-                </div>
+    """ + sector_html + """
             </div>
             <div class="center"></div>
         </div>
 
         <script>
-            // 全局旋转函数：精准旋转到指定扇区
-            window.spinToTarget = function(targetIndex) {{
+            // 全局旋转函数：纯JS字符串拼接，无模板语法
+            window.spinToTarget = function(targetIndex) {
                 const wheel = document.getElementById('wheel');
                 // 计算精准旋转角度：8圈 + 目标扇区中心对准指针
                 const rotateDeg = 8 * 360 + (360 - targetIndex * 60 - 30);
-                wheel.style.transform = `rotate(${rotateDeg}deg)`;
-            }};
+                // 修复：用+拼接字符串，移除模板语法
+                wheel.style.transform = 'rotate(' + rotateDeg + 'deg)';
+            };
         </script>
     </body>
     </html>
@@ -226,7 +216,7 @@ elif st.session_state.step == 3:
             st.session_state.step = 4
             st.rerun()
 
-# 步骤4：精准对齐的转盘抽奖
+# 步骤4：无报错的精准转盘抽奖
 elif st.session_state.step == 4:
     ok = st.session_state.result
     current_items = REWARD if ok else PUNISH
@@ -243,7 +233,7 @@ elif st.session_state.step == 4:
         else:
             st.warning("😜 默契不足！开启惩罚转盘～")
     
-    # 显示精准对齐的转盘
+    # 显示无报错的转盘
     st.subheader("🎡 精准抽奖转盘", divider="violet")
     wheel_html = get_aligned_wheel(current_items)
     st.components.v1.html(wheel_html, height=400, width=400)
@@ -256,19 +246,20 @@ elif st.session_state.step == 4:
             st.session_state.target_idx = target_idx
             st.session_state.final_reward = current_items[target_idx]
             
-            # 2. 触发转盘精准旋转到目标扇区
-            trigger_js = f"""
+            # 2. 触发转盘精准旋转（纯JS拼接，无模板语法）
+            trigger_js = """
             <script>
                 // 找到转盘iframe并调用精准旋转函数
                 const iframes = window.parent.document.querySelectorAll('iframe');
-                for (let iframe of iframes) {{
-                    try {{
-                        iframe.contentWindow.spinToTarget({target_idx});
+                for (let i = 0; i < iframes.length; i++) {
+                    try {
+                        // 修复：传参调用，无模板语法
+                        iframes[i].contentWindow.spinToTarget(""" + str(target_idx) + """);
                         break;
-                    }} catch (e) {{
+                    } catch (e) {
                         continue;
-                    }}
-                }}
+                    }
+                }
             </script>
             """
             st.components.v1.html(trigger_js, height=0)
