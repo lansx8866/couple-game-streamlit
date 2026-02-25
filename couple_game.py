@@ -1,8 +1,6 @@
 import streamlit as st
 import random
 import time
-import plotly.graph_objects as go
-import numpy as np
 
 # ======================= 【后端固定配置】 =======================
 QUESTION_BANK = {
@@ -35,105 +33,87 @@ PUNISH_LIST = [
     "夸对方10句不重样", "洗一次水果", "模仿口头禅10遍"
 ]
 
-# ======================= Plotly动画转盘核心函数 =======================
-def create_wheel(items, rotation=0, selected_idx=None):
-    """创建Plotly交互式转盘（支持旋转动画）"""
+# ======================= CSS动画转盘核心代码 =======================
+def get_wheel_html(items, is_reward=True, rotation_deg=0):
+    """生成纯CSS动画转盘的HTML代码"""
+    # 颜色配置
+    colors = [
+        "#FFB6C1", "#FFC0CB", "#FFD1DC", "#FFE4E1", "#FFF0F5", "#F0E68C"
+    ] if is_reward else [
+        "#FFA07A", "#FF7F50", "#FF6347", "#FF4500", "#F08080", "#CD5C5C"
+    ]
+    
+    # 生成转盘扇区HTML
+    sectors_html = ""
     n = len(items)
-    # 计算扇区角度
-    angles = np.linspace(0, 360, n, endpoint=False)
-    colors = []
+    angle_per_sector = 360 / n
     
-    # 奖励=粉色系，惩罚=橙色系
-    if "捏肩" in items[0] or "奶茶" in items[0]:
-        colors = ['#FFB6C1', '#FFC0CB', '#FFD1DC', '#FFE4E1', '#FFF0F5', '#F0E68C']
-    else:
-        colors = ['#FFA07A', '#FF7F50', '#FF6347', '#FF4500', '#F08080', '#CD5C5C']
-    
-    # 创建转盘
-    fig = go.Figure()
-    
-    # 绘制扇区
     for i in range(n):
-        fig.add_trace(go.Barpolar(
-            r=[1],
-            theta=[angles[i], angles[i] + 360/n],
-            width=[360/n],
-            marker_color=colors[i % len(colors)],
-            marker_line_width=1,
-            name=items[i],
-            showlegend=False
-        ))
+        start_angle = i * angle_per_sector
+        end_angle = (i + 1) * angle_per_sector
+        color = colors[i % len(colors)]
+        
+        # 扇区样式
+        sector_style = f"""
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            clip-path: polygon(50% 50%, 50% 0%, {100 - (start_angle/360)*100}% {100 - (end_angle/360)*100}%);
+            background: {color};
+            transform-origin: center;
+            transform: rotate({start_angle}deg);
+        """
+        
+        # 文字样式（旋转对齐扇区）
+        text_style = f"""
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) rotate({(start_angle + end_angle)/2}deg);
+            transform-origin: 50% 80px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        """
+        
+        sectors_html += f"""
+            <div style="{sector_style}">
+                <div style="{text_style}">{items[i]}</div>
+            </div>
+        """
     
-    # 添加文字标签
-    for i in range(n):
-        mid_angle = angles[i] + 360/(2*n)
-        fig.add_annotation(
-            x=mid_angle,
-            y=0.5,
-            text=items[i],
-            showarrow=False,
-            font=dict(size=12, weight='bold'),
-            textangle=-mid_angle  # 文字随扇区旋转
-        )
-    
-    # 添加指针（指向顶部）
-    fig.add_trace(go.Scatterpolar(
-        r=[0, 1.1],
-        theta=[rotation, rotation],
-        mode='lines+markers',
-        line=dict(color='red', width=3),
-        marker=dict(size=8, color='red'),
-        showlegend=False
-    ))
-    
-    # 配置布局（旋转+样式）
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=False, range=[0, 1.2]),
-            angularaxis=dict(visible=False, direction="clockwise", rotation=rotation)
-        ),
-        width=600,
-        height=600,
-        margin=dict(l=50, r=50, t=50, b=50)
-    )
-    
-    # 标记选中项
-    if selected_idx is not None:
-        selected_angle = angles[selected_idx] + 360/(2*n)
-        fig.add_annotation(
-            x=selected_angle,
-            y=1.2,
-            text="🎯",
-            showarrow=False,
-            font=dict(size=20)
-        )
-    
-    return fig
-
-def spin_wheel(items, target_idx, placeholder):
-    """模拟转盘旋转动画"""
-    # 先快速旋转10圈（视觉效果）
-    for i in range(100):
-        rotation = (i * 10) % 360
-        fig = create_wheel(items, rotation=rotation)
-        placeholder.plotly_chart(fig, use_container_width=True)
-        time.sleep(0.01)
-    
-    # 减速到目标位置
-    target_angle = (target_idx * 360/len(items)) + 360/(2*len(items))
-    current_rotation = 0
-    step = 5
-    while abs(current_rotation - target_angle) > step:
-        current_rotation += step
-        fig = create_wheel(items, rotation=current_rotation % 360)
-        placeholder.plotly_chart(fig, use_container_width=True)
-        time.sleep(0.05)
-        step = max(1, step - 0.1)  # 减速
-    
-    # 最终停在目标位置
-    final_fig = create_wheel(items, rotation=target_angle, selected_idx=target_idx)
-    placeholder.plotly_chart(final_fig, use_container_width=True)
-    return items[target_idx]
+    # 完整转盘HTML（含旋转动画）
+    wheel_html = f"""
+    <div style="position: relative; width: 220px; height: 220px; margin: 0 auto;">
+        <!-- 转盘容器（带旋转动画） -->
+        <div style="
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid #333;
+            transform: rotate({rotation_deg}deg);
+            transition: transform 3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        ">
+            {sectors_html}
+        </div>
+        <!-- 指针 -->
+        <div style="
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 30px solid red;
+            z-index: 10;
+        "></div>
+    </div>
+    """
+    return wheel_html
 
 # ======================= 初始化会话状态 =======================
 st.set_page_config(page_title="情侣默契大考验", page_icon="💘", layout="wide")
@@ -148,7 +128,8 @@ def init_session():
         "same_count": 0,
         "wheel_items": [],
         "selected_reward_punish": "",
-        "wheel_spun": False
+        "wheel_rotated": False,
+        "rotation_deg": 0
     }
     for key, value in default_state.items():
         if key not in st.session_state:
@@ -158,7 +139,7 @@ init_session()
 
 # ======================= 游戏主流程 =======================
 st.title("💖 情侣默契大考验 · 动画转盘版")
-st.markdown("### ✨ 优点/缺点选3个，≥2个相同即成功，转盘抽奖赢奖惩～")
+st.markdown("### ✨ 优点/缺点选3个，≥2个相同即成功～")
 
 # 步骤1：选择问题
 if st.session_state.step == 1:
@@ -234,7 +215,7 @@ elif st.session_state.step == 3:
             st.session_state.step = 4
             st.rerun()
 
-# 步骤4：展示匹配结果 + 动画转盘抽奖
+# 步骤4：展示匹配结果 + CSS动画转盘抽奖
 elif st.session_state.step == 4:
     q = st.session_state.question
     p1 = st.session_state.p1_answers
@@ -256,31 +237,35 @@ elif st.session_state.step == 4:
         else:
             st.warning("😜 默契不足！开启惩罚转盘～")
     
-    # 动画转盘抽奖区域
+    # CSS动画转盘抽奖区域
     st.subheader("🎡 动画转盘抽奖", divider="violet")
     wheel_items = st.session_state.wheel_items
-    wheel_placeholder = st.empty()
+    is_reward = st.session_state.match_result
     
     # 未抽奖时显示初始转盘
-    if not st.session_state.wheel_spun:
-        # 绘制初始静止转盘
-        init_fig = create_wheel(wheel_items)
-        wheel_placeholder.plotly_chart(init_fig, use_container_width=True)
+    if not st.session_state.wheel_rotated:
+        # 生成初始转盘HTML
+        wheel_html = get_wheel_html(wheel_items, is_reward, rotation_deg=0)
+        st.components.v1.html(wheel_html, height=250)
         
         if st.button("🚀 开始转盘抽奖", type="primary", use_container_width=True):
-            with st.spinner("转盘旋转中..."):
-                # 随机选择目标奖项
-                target_idx = random.randint(0, len(wheel_items)-1)
-                # 执行旋转动画
-                selected_item = spin_wheel(wheel_items, target_idx, wheel_placeholder)
-                # 保存结果
-                st.session_state.selected_reward_punish = selected_item
-                st.session_state.wheel_spun = True
+            # 随机选择目标奖项
+            target_idx = random.randint(0, len(wheel_items)-1)
+            # 计算旋转角度（转5圈+目标角度）
+            angle_per_sector = 360 / len(wheel_items)
+            target_rotation = 1800 + (360 - (target_idx * angle_per_sector + angle_per_sector/2))
+            st.session_state.rotation_deg = target_rotation
+            st.session_state.selected_reward_punish = wheel_items[target_idx]
+            st.session_state.wheel_rotated = True
             st.rerun()
-    # 抽奖完成显示结果
+    # 抽奖完成显示旋转后的转盘
     else:
+        # 生成旋转后的转盘HTML
+        wheel_html = get_wheel_html(wheel_items, is_reward, rotation_deg=st.session_state.rotation_deg)
+        st.components.v1.html(wheel_html, height=250)
+        
         # 展示最终结果
-        if st.session_state.match_result:
+        if is_reward:
             st.markdown(f"### 🎁 恭喜抽到奖励：\n## {st.session_state.selected_reward_punish}")
         else:
             st.markdown(f"### ⚠️ 抽到惩罚：\n## {st.session_state.selected_reward_punish}")
@@ -299,7 +284,7 @@ with st.sidebar:
     st.write("1. 优点/缺点类题目：选3个，≥2个相同=成功")
     st.write("2. 其他题目：选1个，相同=成功")
     st.write("3. 成功→奖励转盘，失败→惩罚转盘")
-    st.write("4. 动画转盘基于Plotly实现，流畅无卡顿")
+    st.write("4. 纯CSS动画转盘，零外部库依赖")
     
     st.divider()
     st.markdown("💌 题库/转盘样式可在代码中自定义调整～")
