@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import math
+import json
 
 # ---------- 题库配置（可后端编辑） ----------
 questions_db = [
@@ -329,9 +330,6 @@ elif st.session_state.stage == "spin":
     else:
         # 已有目标索引，显示Canvas转盘并自动播放动画
         target_index = st.session_state.spin_target_index
-        options_json = str(pool)  # 简单列表转字符串，注意转义
-        # 为了安全传递，使用json.dumps
-        import json
         options_json = json.dumps(pool, ensure_ascii=False)
         html_code = f"""
         <div style="display: flex; flex-direction: column; align-items: center;">
@@ -396,7 +394,7 @@ elif st.session_state.stage == "spin":
 
                 // 目标索引（由Python传入）
                 const targetIndex = {target_index};
-                // 计算目标旋转角度
+                // 计算目标扇区中心的角度（相对于正东）
                 const targetAngle = (targetIndex + 0.5) * anglePer;
                 const offset = Math.PI / 2;  // 指针朝北需要的偏移
                 let targetRotation = targetAngle + offset;
@@ -421,7 +419,19 @@ elif st.session_state.stage == "spin":
                     if (progress < 1) {{
                         requestAnimationFrame(animate);
                     }} else {{
-                        // 动画结束，显示结果
+                        // 动画结束，高亮目标扇区中心线
+                        ctx.save();
+                        ctx.translate(200, 200);
+                        ctx.rotate(targetAngle); // 旋转到目标扇区中心线方向（相对于正东）
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(180, 0);
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                        ctx.restore();
+
+                        // 显示结果文字
                         document.getElementById('resultDisplay').innerText = '✨ 结果：' + options[targetIndex];
                     }}
                 }}
