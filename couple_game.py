@@ -367,8 +367,12 @@ elif st.session_state.stage == "spin":
                         ctx.rotate(startAngle + anglePer / 2);
                         ctx.textAlign = 'center';
                         ctx.fillStyle = '#000';
-                        ctx.font = 'bold 14px Arial';
-                        ctx.fillText(options[i].substring(0, 4), 120, 10);
+                        ctx.font = 'bold 12px Arial';  // 缩小字体，适应更多文字
+                        let displayText = options[i];
+                        if (displayText.length > 8) {{
+                            displayText = displayText.substring(0,6) + '..';
+                        }}
+                        ctx.fillText(displayText, 120, 10);
                         ctx.restore();
                     }}
                     ctx.beginPath();
@@ -379,6 +383,7 @@ elif st.session_state.stage == "spin":
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
+                    // 指针（三角形）
                     ctx.beginPath();
                     ctx.moveTo(200, 30);
                     ctx.lineTo(185, 10);
@@ -419,7 +424,7 @@ elif st.session_state.stage == "spin":
                     if (progress < 1) {{
                         requestAnimationFrame(animate);
                     }} else {{
-                        // 动画结束，高亮目标扇区中心线
+                        // 动画结束，高亮目标扇区中心线（加粗红线）
                         ctx.save();
                         ctx.translate(200, 200);
                         ctx.rotate(targetAngle); // 旋转到目标扇区中心线方向（相对于正东）
@@ -427,8 +432,16 @@ elif st.session_state.stage == "spin":
                         ctx.moveTo(0, 0);
                         ctx.lineTo(180, 0);
                         ctx.strokeStyle = 'red';
-                        ctx.lineWidth = 3;
+                        ctx.lineWidth = 4;
                         ctx.stroke();
+                        // 在红线末端画箭头，强调指向
+                        ctx.beginPath();
+                        ctx.moveTo(160, -8);
+                        ctx.lineTo(180, 0);
+                        ctx.lineTo(160, 8);
+                        ctx.closePath();
+                        ctx.fillStyle = 'red';
+                        ctx.fill();
                         ctx.restore();
 
                         // 显示结果文字
