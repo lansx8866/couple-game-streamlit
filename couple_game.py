@@ -1,293 +1,344 @@
 import streamlit as st
 import random
-import time
 
-# ======================= 基础配置 =======================
-st.set_page_config(page_title="情侣默契转盘", layout="wide")
+# ---------- 题库配置（可后端编辑） ----------
+questions_db = [
+    # 优点 (multi)
+    {
+        "id": 1,
+        "category": "优点",
+        "question": "选择对方的三个优点",
+        "options": ["善良", "聪明", "幽默", "体贴", "大方", "有耐心", "有责任心", "上进", "真诚", "浪漫"],
+        "type": "multi"
+    },
+    {
+        "id": 2,
+        "category": "优点",
+        "question": "对方最让你欣赏的三个品质是？",
+        "options": ["乐观", "幽默", "体贴", "细心", "浪漫", "真诚", "温柔", "大方", "聪明", "独立"],
+        "type": "multi"
+    },
+    {
+        "id": 3,
+        "category": "优点",
+        "question": "你认为对方最有魅力的三个优点是？",
+        "options": ["自信", "有主见", "善解人意", "有才华", "勤奋", "开朗", "稳重", "风趣", "慷慨", "包容"],
+        "type": "multi"
+    },
+    # 缺点 (multi)
+    {
+        "id": 4,
+        "category": "缺点",
+        "question": "选择对方的三个缺点",
+        "options": ["拖延", "粗心", "脾气急", "固执", "唠叨", "花钱大手大脚", "不爱运动", "熬夜", "不爱整理", "挑食"],
+        "type": "multi"
+    },
+    {
+        "id": 5,
+        "category": "缺点",
+        "question": "对方最让你头疼的三个缺点是？",
+        "options": ["太宅", "不主动沟通", "爱玩手机", "情绪化", "记仇", "多疑", "自私", "小气", "不浪漫", "邋遢"],
+        "type": "multi"
+    },
+    {
+        "id": 6,
+        "category": "缺点",
+        "question": "你认为对方最需要改进的三个缺点是？",
+        "options": ["懒散", "急躁", "健忘", "优柔寡断", "敏感", "爱抱怨", "冲动", "嘴硬", "玻璃心"],
+        "type": "multi"
+    },
+    # 一起做的事 (single)
+    {
+        "id": 7,
+        "category": "一起做的事",
+        "question": "最想和对方一起做的事是什么？",
+        "options": ["旅行", "看电影", "做饭", "健身", "读书", "打游戏", "逛街", "露营", "看日出", "养宠物"],
+        "type": "single"
+    },
+    {
+        "id": 8,
+        "category": "一起做的事",
+        "question": "你心中最浪漫的和对方一起做的事？",
+        "options": ["看海", "山顶看日出", "烛光晚餐", "散步", "听音乐会", "去游乐园", "滑雪", "泡温泉", "自驾游", "野餐"],
+        "type": "single"
+    },
+    {
+        "id": 9,
+        "category": "一起做的事",
+        "question": "你最期待和对方一起体验的活动？",
+        "options": ["学习新技能", "参加派对", "做手工", "逛博物馆", "看演唱会", "运动", "冥想", "摄影", "钓鱼", "种花"],
+        "type": "single"
+    },
+    # 感动的事 (single)
+    {
+        "id": 10,
+        "category": "感动的事",
+        "question": "对方做哪些事会让你感动？",
+        "options": ["记得你的生日", "生病时照顾你", "给你惊喜", "为你做饭", "支持你的梦想", "陪伴你", "送你礼物", "写情书", "拥抱你", "说情话"],
+        "type": "single"
+    },
+    {
+        "id": 11,
+        "category": "感动的事",
+        "question": "什么情况下你会觉得对方特别暖心？",
+        "options": ["你累了给你按摩", "为你准备早餐", "帮你解决问题", "给你鼓励", "记得你随口说的话", "替你分担家务", "给你小惊喜", "照顾你的情绪", "为你着想", "包容你"],
+        "type": "single"
+    },
+    {
+        "id": 12,
+        "category": "感动的事",
+        "question": "对方做什么会让你觉得被深爱着？",
+        "options": ["公开表白", "为你改变", "为你付出时间", "关注你的细节", "为你挺身而出", "为你流泪", "为你努力", "为你妥协", "把你放在第一位", "给你安全感"],
+        "type": "single"
+    },
+    # 生气的事 (single)
+    {
+        "id": 13,
+        "category": "生气的事",
+        "question": "对方做哪些事会让你生气？",
+        "options": ["不回消息", "忘记约定", "和异性暧昧", "对你发脾气", "撒谎", "不尊重你", "忽略你", "挑剔你", "指责你", "冷战"],
+        "type": "single"
+    },
+    {
+        "id": 14,
+        "category": "生气的事",
+        "question": "什么行为会让你瞬间对对方发火？",
+        "options": ["说话不算数", "敷衍你", "当众让你难堪", "翻旧账", "不信任你", "打游戏不理你", "跟别人过于亲密", "不听你解释", "贬低你", "忽视你的感受"],
+        "type": "single"
+    },
+    {
+        "id": 15,
+        "category": "生气的事",
+        "question": "你最讨厌对方什么行为？",
+        "options": ["抽烟喝酒", "乱扔东西", "拖延", "迟到", "跟你顶嘴", "小气", "八卦", "炫耀", "爱抱怨", "负能量"],
+        "type": "single"
+    },
+    # 忍受不了的行为 (single)
+    {
+        "id": 16,
+        "category": "忍受不了",
+        "question": "最忍受不了女朋友/男朋友的哪些行为？",
+        "options": ["当众让你难堪", "翻看手机", "控制欲强", "不信任你", "过度依赖", "不修边幅", "沉迷游戏", "不爱干净", "说话刻薄", "没有主见"],
+        "type": "single"
+    },
+    {
+        "id": 17,
+        "category": "忍受不了",
+        "question": "对方的什么行为会让你想分手？",
+        "options": ["家暴", "出轨", "欺骗", "不尊重你父母", "不上进", "啃老", "赌博", "酗酒", "自私自利", "冷暴力"],
+        "type": "single"
+    },
+    {
+        "id": 18,
+        "category": "忍受不了",
+        "question": "你绝对无法容忍对方的哪种习惯？",
+        "options": ["撒谎成性", "邋遢", "斤斤计较", "大男子/女子主义", "妈宝", "暴力倾向", "情绪不稳定", "极端", "不负责任", "不忠诚"],
+        "type": "single"
+    },
+    # 形容对方 (single)
+    {
+        "id": 19,
+        "category": "形容对方",
+        "question": "用一个词形容你的男朋友/女朋友？",
+        "options": ["可爱的", "温柔的", "帅气的", "聪明的", "幽默的", "靠谱的", "呆萌的", "高冷的", "霸道的", "暖心的"],
+        "type": "single"
+    },
+    {
+        "id": 20,
+        "category": "形容对方",
+        "question": "你觉得对方最贴切的形容词是？",
+        "options": ["阳光的", "稳重的", "有趣的", "善良的", "真诚的", "大方的", "细心的", "浪漫的", "独立的", "坚强的"],
+        "type": "single"
+    },
+    {
+        "id": 21,
+        "category": "形容对方",
+        "question": "如果让你用一个词描述对方给你的感觉？",
+        "options": ["安心的", "快乐的", "幸福的", "温暖的", "甜蜜的", "踏实的", "心动的", "舒服的", "骄傲的", "依赖的"],
+        "type": "single"
+    }
+]
 
-# 题目库
-QUESTION_BANK = {
-    "对方的三个优点": ["温柔体贴", "有责任心", "幽默有趣", "上进努力", "细心周到", "情绪稳定"],
-    "我的三个优点": ["乐观开朗", "包容心强", "动手能力强", "善于倾听", "真诚坦率", "有耐心"],
-    "对方的三个缺点": ["有点拖延", "偶尔脾气急", "不爱收拾", "太宅", "话少", "容易焦虑"],
-    "我的三个缺点": ["有点敏感", "缺乏耐心", "熬夜", "挑食", "容易胡思乱想", "不爱主动"],
-    "最想和对方一起做的事": ["看海边日出", "做烛光晚餐", "短途旅行", "拍情侣写真", "宅家追剧"],
-}
+# 奖励和惩罚池（可后端编辑）
+rewards = [
+    "深情拥抱10秒", "亲吻一下", "说一句情话", "为对方按摩5分钟",
+    "陪对方做一件想做的事", "送一个小礼物", "写一封情书", "为对方唱一首歌"
+]
+punishments = [
+    "做10个俯卧撑", "学狗叫三声", "发朋友圈表白", "打扫卫生一天",
+    "请对方喝奶茶", "背对方走10步", "讲一个笑话", "接受对方挠痒痒惩罚"
+]
 
-# 奖惩库（固定6个，和转盘扇区一一对应）
-REWARD = ["捏肩10分钟", "承包家务", "买奶茶", "抱抱5分钟", "今天听你的", "手写情书"]
-PUNISH = ["学小猫叫", "讲冷笑话", "深蹲10个", "夸对方10句", "洗水果", "模仿口头禅"]
+# ---------- 初始化 session state ----------
+if "stage" not in st.session_state:
+    st.session_state.stage = "player1"          # 游戏阶段：player1, player2, result
+    st.session_state.selected_category = None
+    st.session_state.selected_question = None
+    st.session_state.correct_answers = None     # 玩家1设定的正确答案
+    st.session_state.player2_answers = None      # 玩家2提交的答案
+    st.session_state.result = None                # 对错结果和转盘结果
 
-# ======================= 无报错的精准对齐转盘（核心修复） =======================
-def get_aligned_wheel(items):
-    """生成无报错的转盘：纯JS字符串拼接，指针+文字+精准对齐"""
-    # 固定6个扇区的颜色（视觉区分）
-    colors = [
-        "#FF6B9E", "#FF85A1", "#FF9Ea4", 
-        "#FFB7A7", "#FFD0AA", "#FFE9AD"
-    ]
-    
-    # 生成扇区HTML（纯字符串拼接，无模板语法）
-    sector_html = ""
-    angles = [0, 60, 120, 180, 240, 300]
-    text_rotates = [30, 90, 150, 210, 270, 330]
-    for i in range(6):
-        sector_html += f"""
-        <!-- 扇区{i+1}：{angles[i]}° -->
-        <div class="sector" style="transform: rotate({angles[i]}deg); background: {colors[i]}">
-            <div class="sector-text" style="transform: rotate({text_rotates[i]}deg)">{items[i]}</div>
-        </div>
-        """
-    
-    # 完整转盘HTML（移除所有JS模板字符串，改用+拼接）
-    wheel_html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            /* 转盘容器 */
-            .wheel-box {
-                position: relative;
-                width: 350px;
-                height: 350px;
-                margin: 0 auto;
-            }
-            /* 指针（固定在顶部，绝对居中） */
-            .pointer {
-                position: absolute;
-                top: -15px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 0;
-                height: 0;
-                border-left: 20px solid transparent;
-                border-right: 20px solid transparent;
-                border-bottom: 40px solid red;
-                z-index: 100;
-                pointer-events: none;
-            }
-            /* 转盘主体 */
-            .wheel {
-                width: 350px;
-                height: 350px;
-                border-radius: 50%;
-                position: relative;
-                overflow: hidden;
-                border: 8px solid #333;
-                transform-origin: center center;
-                transition: transform 4s cubic-bezier(0.2, 0.8, 0.1, 1);
-            }
-            /* 单个扇区（6个，角度固定） */
-            .sector {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%);
-                transform-origin: center center;
-                display: flex;
-                justify-content: center;
-                align-items: flex-start;
-                padding-top: 30px;
-                box-sizing: border-box;
-            }
-            /* 扇区文字（清晰显示，旋转对齐） */
-            .sector-text {
-                color: #222;
-                font-size: 14px;
-                font-weight: bold;
-                white-space: nowrap;
-                transform-origin: 0 140px;
-                text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-            }
-            /* 中心圆点 */
-            .center {
-                position: absolute;
-                width: 40px;
-                height: 40px;
-                background: white;
-                border: 4px solid #333;
-                border-radius: 50%;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                z-index: 50;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="wheel-box">
-            <div class="pointer"></div>
-            <div id="wheel" class="wheel">
-    """ + sector_html + """
-            </div>
-            <div class="center"></div>
-        </div>
+# ---------- 辅助函数 ----------
+def get_question_by_id(qid):
+    for q in questions_db:
+        if q["id"] == qid:
+            return q
+    return None
 
-        <script>
-            // 全局旋转函数：纯JS字符串拼接，无模板语法
-            window.spinToTarget = function(targetIndex) {
-                const wheel = document.getElementById('wheel');
-                // 计算精准旋转角度：8圈 + 目标扇区中心对准指针
-                const rotateDeg = 8 * 360 + (360 - targetIndex * 60 - 30);
-                // 修复：用+拼接字符串，移除模板语法
-                wheel.style.transform = 'rotate(' + rotateDeg + 'deg)';
-            };
-        </script>
-    </body>
-    </html>
-    """
-    return wheel_html
+def check_answer(question, correct, player2):
+    """判断玩家2是否正确"""
+    if question["type"] == "multi":
+        # 要求双方都选三个，交集≥2即正确
+        if len(correct) != 3 or len(player2) != 3:
+            return False
+        common = set(correct) & set(player2)
+        return len(common) >= 2
+    else:
+        # 单选直接比较
+        return correct == player2
 
-# ======================= 会话状态初始化 =======================
-if "step" not in st.session_state:
-    st.session_state.step = 1
-if "question" not in st.session_state:
-    st.session_state.question = ""
-if "p1" not in st.session_state:
-    st.session_state.p1 = []
-if "p2" not in st.session_state:
-    st.session_state.p2 = []
-if "result" not in st.session_state:
-    st.session_state.result = None
-if "spun" not in st.session_state:
-    st.session_state.spun = False
-if "final_reward" not in st.session_state:
-    st.session_state.final_reward = ""
-if "target_idx" not in st.session_state:
-    st.session_state.target_idx = -1
+# ---------- 页面布局 ----------
+st.set_page_config(page_title="默契考验小游戏", page_icon="🎮")
+st.title("🎮 默契大考验")
+st.markdown("---")
 
-# ======================= 游戏流程 =======================
-# 步骤1：选择题目
-if st.session_state.step == 1:
-    st.subheader("📝 选择考验题目", divider="violet")
-    q = st.selectbox("请选择题目", list(QUESTION_BANK.keys()))
-    st.session_state.question = q
-    if st.button("✅ 确定开始", type="primary"):
-        st.session_state.step = 2
+# 显示当前阶段
+if st.session_state.stage == "player1":
+    st.header("👨 玩家1：出题阶段")
+elif st.session_state.stage == "player2":
+    st.header("👩 玩家2：答题阶段")
+else:
+    st.header("🎲 结果揭晓")
+
+st.markdown("---")
+
+# ---------- 玩家1：选择问题并设定正确答案 ----------
+if st.session_state.stage == "player1":
+    # 选择类别
+    categories = sorted(list(set(q["category"] for q in questions_db)))
+    selected_cat = st.selectbox("选择问题类别", categories, key="cat_select")
+    st.session_state.selected_category = selected_cat
+
+    # 根据类别筛选问题
+    cat_questions = [q for q in questions_db if q["category"] == selected_cat]
+    question_titles = {f"{q['id']}: {q['question']}": q["id"] for q in cat_questions}
+    selected_title = st.selectbox("选择具体问题", list(question_titles.keys()), key="q_select")
+    qid = question_titles[selected_title]
+    question = get_question_by_id(qid)
+    st.session_state.selected_question = question
+
+    st.markdown("---")
+    st.subheader("设定正确答案（只有你知道）")
+
+    if question["type"] == "multi":
+        st.write("请选择 **三个** 优点/缺点（作为正确答案）：")
+        # 用 multiselect 并限制最多选3个
+        correct = st.multiselect(
+            "选择三个选项",
+            question["options"],
+            max_selections=3,
+            key="correct_multi"
+        )
+        if len(correct) != 3:
+            st.warning("请恰好选择三个选项")
+        else:
+            if st.button("✅ 确认出题", type="primary"):
+                st.session_state.correct_answers = correct
+                st.session_state.stage = "player2"
+                st.rerun()
+    else:
+        st.write("请选择一个正确答案：")
+        correct = st.radio(
+            "选择一个选项",
+            question["options"],
+            key="correct_single",
+            index=None  # 默认无选择
+        )
+        if correct is None:
+            st.warning("请选择一个选项")
+        else:
+            if st.button("✅ 确认出题", type="primary"):
+                st.session_state.correct_answers = correct
+                st.session_state.stage = "player2"
+                st.rerun()
+
+# ---------- 玩家2：回答问题 ----------
+elif st.session_state.stage == "player2":
+    question = st.session_state.selected_question
+    st.subheader(f"问题：{question['question']}")
+
+    if question["type"] == "multi":
+        st.write("请选择 **三个** 选项（你的答案）：")
+        player2 = st.multiselect(
+            "你的选择",
+            question["options"],
+            max_selections=3,
+            key="player2_multi"
+        )
+        if len(player2) != 3:
+            st.warning("请恰好选择三个选项")
+        else:
+            if st.button("📤 提交答案", type="primary"):
+                st.session_state.player2_answers = player2
+                # 判断对错
+                correct = st.session_state.correct_answers
+                is_correct = check_answer(question, correct, player2)
+                # 随机抽取奖励/惩罚
+                if is_correct:
+                    outcome = random.choice(rewards)
+                    result_text = f"✅ 答对啦！恭喜获得奖励：**{outcome}**"
+                else:
+                    outcome = random.choice(punishments)
+                    result_text = f"❌ 哎呀答错了！接受惩罚：**{outcome}**"
+                st.session_state.result = result_text
+                st.session_state.stage = "result"
+                st.rerun()
+    else:
+        st.write("请选择一个选项：")
+        player2 = st.radio(
+            "你的答案",
+            question["options"],
+            key="player2_single",
+            index=None
+        )
+        if player2 is None:
+            st.warning("请选择一个选项")
+        else:
+            if st.button("📤 提交答案", type="primary"):
+                st.session_state.player2_answers = player2
+                correct = st.session_state.correct_answers
+                is_correct = check_answer(question, correct, player2)
+                if is_correct:
+                    outcome = random.choice(rewards)
+                    result_text = f"✅ 答对啦！恭喜获得奖励：**{outcome}**"
+                else:
+                    outcome = random.choice(punishments)
+                    result_text = f"❌ 哎呀答错了！接受惩罚：**{outcome}**"
+                st.session_state.result = result_text
+                st.session_state.stage = "result"
+                st.rerun()
+
+# ---------- 结果显示 ----------
+elif st.session_state.stage == "result":
+    st.subheader(st.session_state.result)
+
+    # 显示双方答案对比（可选）
+    question = st.session_state.selected_question
+    with st.expander("查看答案详情"):
+        st.write(f"**问题**：{question['question']}")
+        st.write(f"**玩家1的正确答案**：{st.session_state.correct_answers}")
+        st.write(f"**玩家2的答案**：{st.session_state.player2_answers}")
+
+    if st.button("🔄 再来一局", type="primary"):
+        # 重置状态，保留题库
+        st.session_state.stage = "player1"
+        st.session_state.selected_category = None
+        st.session_state.selected_question = None
+        st.session_state.correct_answers = None
+        st.session_state.player2_answers = None
+        st.session_state.result = None
         st.rerun()
 
-# 步骤2：玩家1答题
-elif st.session_state.step == 2:
-    q = st.session_state.question
-    opts = QUESTION_BANK[q]
-    st.subheader(f"👩 玩家1答题：{q}", divider="violet")
-    
-    if "优点" in q or "缺点" in q:
-        selected = st.multiselect("选3个答案（最多3个）", opts, max_selections=3)
-        if len(selected) == 3:
-            st.session_state.p1 = selected
-            if st.button("✅ 轮到玩家2", type="primary"):
-                st.session_state.step = 3
-                st.rerun()
-        else:
-            st.info(f"已选{len(selected)}/3个，需选满！")
-    else:
-        selected = st.radio("选1个答案", opts)
-        st.session_state.p1 = [selected]
-        if st.button("✅ 轮到玩家2", type="primary"):
-            st.session_state.step = 3
-            st.rerun()
-
-# 步骤3：玩家2答题
-elif st.session_state.step == 3:
-    q = st.session_state.question
-    opts = QUESTION_BANK[q]
-    st.subheader(f"👨 玩家2答题：{q}", divider="violet")
-    
-    if "优点" in q or "缺点" in q:
-        selected = st.multiselect("选3个答案（最多3个）", opts, max_selections=3)
-        if len(selected) == 3:
-            st.session_state.p2 = selected
-            same = len(set(st.session_state.p1) & set(selected))
-            st.session_state.result = same >= 2
-            if st.button("🎯 查看结果", type="primary"):
-                st.session_state.step = 4
-                st.rerun()
-        else:
-            st.info(f"已选{len(selected)}/3个，需选满！")
-    else:
-        selected = st.radio("选1个答案", opts)
-        st.session_state.p2 = [selected]
-        same = len(set(st.session_state.p1) & set([selected]))
-        st.session_state.result = same >= 1
-        if st.button("🎯 查看结果", type="primary"):
-            st.session_state.step = 4
-            st.rerun()
-
-# 步骤4：无报错的精准转盘抽奖
-elif st.session_state.step == 4:
-    ok = st.session_state.result
-    current_items = REWARD if ok else PUNISH
-    
-    # 展示答案对比
-    st.subheader("🧩 默契结果揭晓", divider="violet")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**玩家1答案**：{', '.join(st.session_state.p1)}")
-        st.write(f"**玩家2答案**：{', '.join(st.session_state.p2)}")
-    with col2:
-        if ok:
-            st.success("🎉 默契成功！解锁奖励转盘～")
-        else:
-            st.warning("😜 默契不足！开启惩罚转盘～")
-    
-    # 显示无报错的转盘
-    st.subheader("🎡 精准抽奖转盘", divider="violet")
-    wheel_html = get_aligned_wheel(current_items)
-    st.components.v1.html(wheel_html, height=400, width=400)
-    
-    # 旋转按钮（未抽奖状态）
-    if not st.session_state.spun:
-        if st.button("🚀 旋转转盘", type="primary", use_container_width=True):
-            # 1. 随机选择目标扇区（0-5）
-            target_idx = random.randint(0, 5)
-            st.session_state.target_idx = target_idx
-            st.session_state.final_reward = current_items[target_idx]
-            
-            # 2. 触发转盘精准旋转（纯JS拼接，无模板语法）
-            trigger_js = """
-            <script>
-                // 找到转盘iframe并调用精准旋转函数
-                const iframes = window.parent.document.querySelectorAll('iframe');
-                for (let i = 0; i < iframes.length; i++) {
-                    try {
-                        // 修复：传参调用，无模板语法
-                        iframes[i].contentWindow.spinToTarget(""" + str(target_idx) + """);
-                        break;
-                    } catch (e) {
-                        continue;
-                    }
-                }
-            </script>
-            """
-            st.components.v1.html(trigger_js, height=0)
-            
-            # 3. 等待动画完成
-            time.sleep(4.5)
-            st.session_state.spun = True
-            st.rerun()
-    else:
-        # 显示最终结果（和指针指向的扇区100%一致）
-        st.markdown(f"""
-        <div style="text-align:center; font-size:24px; font-weight:bold; color:#e63946; margin:20px 0;">
-            🏆 最终结果：{st.session_state.final_reward}
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 再来一局按钮
-        if st.button("🔄 再来一局", use_container_width=True):
-            # 重置所有状态
-            for k in list(st.session_state.keys()):
-                del st.session_state[k]
-            st.rerun()
-
-# ======================= 底部说明 =======================
-st.markdown("""
-<div style="margin-top:50px; padding:10px; background:#f8f9fa; border-radius:8px;">
-    <p style="color:#666; text-align:center;">
-        💡 转盘说明：指针固定在顶部，转盘旋转后，指针指向的扇区即为最终结果
-    </p>
-</div>
-""", unsafe_allow_html=True)
+# 底部说明
+st.markdown("---")
+st.caption("规则：玩家1选择问题并设定正确答案（优点/缺点需选三个，其他单选）。玩家2作答，优点/缺点类需至少猜对两个即算正确，其他需完全一致。正确/错误后随机抽取奖励/惩罚。")
