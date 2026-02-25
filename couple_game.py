@@ -349,6 +349,7 @@ elif st.session_state.stage == "spin":
 
                 function drawWheel() {{
                     ctx.clearRect(0, 0, 400, 400);
+                    // 绘制转盘扇区
                     for (let i = 0; i < total; i++) {{
                         let startAngle = i * anglePer + rotation;
                         let endAngle = (i + 1) * anglePer + rotation;
@@ -362,12 +363,13 @@ elif st.session_state.stage == "spin":
                         ctx.lineWidth = 2;
                         ctx.stroke();
 
+                        // 绘制文字
                         ctx.save();
                         ctx.translate(200, 200);
                         ctx.rotate(startAngle + anglePer / 2);
                         ctx.textAlign = 'center';
                         ctx.fillStyle = '#000';
-                        ctx.font = 'bold 12px Arial';  // 缩小字体，适应更多文字
+                        ctx.font = 'bold 12px Arial';
                         let displayText = options[i];
                         if (displayText.length > 8) {{
                             displayText = displayText.substring(0,6) + '..';
@@ -375,6 +377,7 @@ elif st.session_state.stage == "spin":
                         ctx.fillText(displayText, 120, 10);
                         ctx.restore();
                     }}
+                    // 绘制中心小圆
                     ctx.beginPath();
                     ctx.arc(200, 200, 20, 0, 2 * Math.PI);
                     ctx.fillStyle = '#333';
@@ -383,13 +386,13 @@ elif st.session_state.stage == "spin":
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // 指针（三角形）
+                    // 绘制固定的倒三角指针（在正上方）
                     ctx.beginPath();
-                    ctx.moveTo(200, 30);
-                    ctx.lineTo(185, 10);
-                    ctx.lineTo(215, 10);
+                    ctx.moveTo(200, 30);      // 顶点下方
+                    ctx.lineTo(185, 10);       // 左上方
+                    ctx.lineTo(215, 10);        // 右上方
                     ctx.closePath();
-                    ctx.fillStyle = '#333';
+                    ctx.fillStyle = '#FF0000';   // 红色指针
                     ctx.fill();
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = 1;
@@ -401,12 +404,12 @@ elif st.session_state.stage == "spin":
                 const targetIndex = {target_index};
                 // 计算目标扇区中心的角度（相对于正东）
                 const targetAngle = (targetIndex + 0.5) * anglePer;
-                const offset = Math.PI / 2;  // 指针朝北需要的偏移
-                let targetRotation = targetAngle + offset;
-                targetRotation = targetRotation % (2 * Math.PI);
-                let currentRotation = rotation % (2 * Math.PI);
+                // 指针方向为正北（-PI/2），我们希望目标扇区中心指向正北，即 rotation + targetAngle ≡ -PI/2 (mod 2π)
+                // 所以 targetRotation = (-PI/2 - targetAngle) mod 2π
+                const targetRotation = ((-Math.PI/2 - targetAngle) + 2*Math.PI) % (2*Math.PI);
+                let currentRotation = rotation % (2*Math.PI);
                 let delta = targetRotation - currentRotation;
-                if (delta < 0) delta += 2 * Math.PI;
+                if (delta < 0) delta += 2*Math.PI;
                 const spins = 10 + Math.floor(Math.random() * 5);
                 delta += spins * 2 * Math.PI;
 
@@ -424,27 +427,7 @@ elif st.session_state.stage == "spin":
                     if (progress < 1) {{
                         requestAnimationFrame(animate);
                     }} else {{
-                        // 动画结束，高亮目标扇区中心线（加粗红线）
-                        ctx.save();
-                        ctx.translate(200, 200);
-                        ctx.rotate(targetAngle); // 旋转到目标扇区中心线方向（相对于正东）
-                        ctx.beginPath();
-                        ctx.moveTo(0, 0);
-                        ctx.lineTo(180, 0);
-                        ctx.strokeStyle = 'red';
-                        ctx.lineWidth = 4;
-                        ctx.stroke();
-                        // 在红线末端画箭头，强调指向
-                        ctx.beginPath();
-                        ctx.moveTo(160, -8);
-                        ctx.lineTo(180, 0);
-                        ctx.lineTo(160, 8);
-                        ctx.closePath();
-                        ctx.fillStyle = 'red';
-                        ctx.fill();
-                        ctx.restore();
-
-                        // 显示结果文字
+                        // 动画结束，显示结果文字
                         document.getElementById('resultDisplay').innerText = '✨ 结果：' + options[targetIndex];
                     }}
                 }}
