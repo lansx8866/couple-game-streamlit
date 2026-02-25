@@ -33,7 +33,8 @@ init_session_state()
 
 # ---------------------- 自定义内容模块 ----------------------
 st.title("💖 情侣互动小游戏 💖")
-st.subheader("✨ 自定义事件/奖惩", divider="pink")
+# 修复：将divider="pink"改为支持的"violet"（紫罗兰色，视觉接近粉色）
+st.subheader("✨ 自定义事件/奖惩", divider="violet")
 
 # 自定义事件（垂直布局，避免列嵌套问题）
 new_event = st.text_input("添加想要一起做的事", placeholder="比如：一起养小宠物")
@@ -69,7 +70,8 @@ if st.button("添加惩罚", key="add_punish"):
         st.error("❌ 惩罚不能为空！")
 
 # ---------------------- 双人选择模块 ----------------------
-st.subheader("💘 选择想要一起做的事（1-3件）", divider="pink")
+# 修复：divider改为"violet"
+st.subheader("💘 选择想要一起做的事（1-3件）", divider="violet")
 col_p1, col_p2 = st.columns(2)
 
 # 第一个人选择
@@ -107,7 +109,8 @@ if st.button("🎯 提交选择，查看匹配结果", type="primary"):
         st.session_state.has_match = len(same_events) > 0
         
         # 展示结果
-        st.subheader("🎊 匹配结果", divider="pink")
+        # 修复：divider改为"violet"
+        st.subheader("🎊 匹配结果", divider="violet")
         if same_events:
             st.success(f"💞 你们选到了相同的事：{', '.join(same_events)}")
         else:
@@ -123,7 +126,8 @@ if st.button("🎯 提交选择，查看匹配结果", type="primary"):
 
 # ---------------------- 转盘抽奖模块 ----------------------
 if st.session_state.has_match or (len(st.session_state.p1_choices) > 0 and len(st.session_state.p2_choices) > 0):
-    st.subheader("🎡 转盘抽奖", divider="pink")
+    # 修复：divider改为"violet"
+    st.subheader("🎡 转盘抽奖", divider="violet")
     wheel_type = "奖励" if st.session_state.has_match else "惩罚"
     wheel_items = st.session_state.rewards if st.session_state.has_match else st.session_state.punishments
     
@@ -143,7 +147,7 @@ if st.session_state.has_match or (len(st.session_state.p1_choices) > 0 and len(s
 # 重置游戏按钮（兼容旧版本）
 if st.button("🔄 重新开始游戏"):
     st.session_state.clear()
-    # 兼容写法：st.experimental_rerun()
+    # 兼容写法：优先用st.rerun，失败则用experimental_rerun
     try:
         st.rerun()
     except AttributeError:
