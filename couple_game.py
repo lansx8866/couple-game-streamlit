@@ -108,13 +108,13 @@ st.markdown("### ✨ 优点/缺点选3个，≥2个相同即成功")
 
 # 步骤1：选择问题
 if st.session_state.step == 1:
-    st.subheader("📝 第一步：选择考验题目", divider="violet")
+    st.subheader("请选择考验题目", divider="violet")
     selected_question = st.selectbox("请选择题目（所有内容已固定）", list(QUESTION_BANK.keys()))
     st.session_state.question = selected_question
     
     col1, col2 = st.columns([1, 4])
     with col1:
-        if st.button("✅ 确定题目", type="primary"):
+        if st.button(" 确定题目", type="primary"):
             st.session_state.step = 2
             st.rerun()
 
@@ -123,12 +123,12 @@ elif st.session_state.step == 2:
     q = st.session_state.question
     opts = QUESTION_BANK[q]
     
-    st.subheader(f"👩 第二步：玩家1答题 - {q}", divider="violet")
+    st.subheader(f"：玩家1答题 - {q}", divider="violet")
     if "优点" in q or "缺点" in q:
         selected = st.multiselect("请选择3个答案（最多3个）", opts, max_selections=3, key="p1")
         if len(selected) == 3:
             st.session_state.p1_answers = selected
-            if st.button("✅ 答完，轮到玩家2", type="primary"):
+            if st.button("轮到玩家2", type="primary"):
                 st.session_state.step = 3
                 st.rerun()
         else:
@@ -136,7 +136,7 @@ elif st.session_state.step == 2:
     else:
         selected = st.radio("请选择1个答案", opts, key="p1")
         st.session_state.p1_answers = [selected]
-        if st.button("✅ 答完，轮到玩家2", type="primary"):
+        if st.button("轮到玩家2", type="primary"):
             st.session_state.step = 3
             st.rerun()
 
@@ -145,12 +145,12 @@ elif st.session_state.step == 3:
     q = st.session_state.question
     opts = QUESTION_BANK[q]
     
-    st.subheader(f"👨 第三步：玩家2答题 - {q}", divider="violet")
+    st.subheader(f"玩家2答题 - {q}", divider="violet")
     if "优点" in q or "缺点" in q:
         selected = st.multiselect("请选择3个答案（最多3个）", opts, max_selections=3, key="p2")
         if len(selected) == 3:
             st.session_state.p2_answers = selected
-            if st.button("🎯 查看默契结果", type="primary"):
+            if st.button("查看默契程度", type="primary"):
                 # 计算相同答案数量
                 p1_set = set(st.session_state.p1_answers)
                 p2_set = set(st.session_state.p2_answers)
@@ -175,7 +175,7 @@ elif st.session_state.step == 3:
     else:
         selected = st.radio("请选择1个答案", opts, key="p2")
         st.session_state.p2_answers = [selected]
-        if st.button("🎯 查看默契结果", type="primary"):
+        if st.button("查看默契程度", type="primary"):
             # 计算相同答案数量
             p1_set = set(st.session_state.p1_answers)
             p2_set = set(st.session_state.p2_answers)
@@ -197,7 +197,7 @@ elif st.session_state.step == 4:
     same_count = st.session_state.same_count
     
     # 展示答案对比
-    st.subheader("🧩 第四步：默契结果揭晓", divider="violet")
+    st.subheader("🧩默契程度揭晓", divider="violet")
     col1, col2 = st.columns(2)
     with col1:
         st.write(f"**考验题目**：{q}")
@@ -207,7 +207,7 @@ elif st.session_state.step == 4:
     
     with col2:
         if st.session_state.match_result:
-            st.success("🎉 默契成功！解锁奖励转盘～")
+            st.success("🎉 你们真有默契，转盘奖励开启～")
         else:
             st.warning("😜 默契不足！开启惩罚转盘～")
     
@@ -256,5 +256,6 @@ with st.sidebar:
     
     st.divider()
     st.markdown("💌 题库/转盘样式可在代码中自定义调整～")
+
 
 
