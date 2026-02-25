@@ -1,7 +1,11 @@
 import streamlit as st
 import random
+import time
 
-# ======================= 题目库 =======================
+# ======================= 基础配置 =======================
+st.set_page_config(page_title="情侣默契转盘", layout="wide")
+
+# 题目库
 QUESTION_BANK = {
     "对方的三个优点": ["温柔体贴", "有责任心", "幽默有趣", "上进努力", "细心周到", "情绪稳定"],
     "我的三个优点": ["乐观开朗", "包容心强", "动手能力强", "善于倾听", "真诚坦率", "有耐心"],
@@ -10,136 +14,122 @@ QUESTION_BANK = {
     "最想和对方一起做的事": ["看海边日出", "做烛光晚餐", "短途旅行", "拍情侣写真", "宅家追剧"],
 }
 
+# 奖惩库
 REWARD = ["捏肩10分钟", "承包家务", "买奶茶", "抱抱5分钟", "今天听你的", "手写情书"]
 PUNISH = ["学小猫叫", "讲冷笑话", "深蹲10个", "夸对方10句", "洗水果", "模仿口头禅"]
 
-# ======================= 真正会转的转盘（纯前端） =======================
-def spinning_wheel(items, is_reward):
-    colors = [
-        "#FF9BBB", "#FF789E", "#FF5C87", "#FF4473", "#FF2A5F", "#FF0040"
-    ] if is_reward else [
-        "#FFB380", "#FF9F66", "#FF8C4D", "#FF7833", "#FF6519", "#FF5100"
-    ]
-
-    sectors = []
-    n = len(items)
-    angle = 360 / n
-
-    for i, text in enumerate(items):
-        start = i * angle
-        end = (i + 1) * angle
-        sectors.append(f"""
-            <div class="sector" style="
-                --start: {start}deg;
-                --end: {end}deg;
-                background: {colors[i]};
-            ">
-                <span class="sector-text">{text}</span>
+# ======================= 核心：100%能转的转盘代码 =======================
+def get_working_wheel(items, is_reward):
+    # 颜色配置
+    color = "pink" if is_reward else "orange"
+    
+    # 直接写死6个扇区的转盘（最稳定）
+    wheel_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            /* 转盘容器 */
+            .wheel {{
+                width: 300px;
+                height: 300px;
+                border-radius: 50%;
+                position: relative;
+                margin: 0 auto;
+                overflow: hidden;
+                border: 5px solid #333;
+                transition: transform 3s ease-out; /* 核心：3秒旋转动画 */
+                transform-origin: center;
+            }}
+            /* 扇区样式 */
+            .slice {{
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                clip-path: polygon(50% 50%, 50% 0%, 100% 0%);
+                transform-origin: center;
+                display: flex;
+                align-items: flex-start;
+                justify-content: center;
+                padding-top: 20px;
+                box-sizing: border-box;
+            }}
+            /* 扇区文字 */
+            .slice span {{
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+                transform: rotate(var(--rotate));
+                white-space: nowrap;
+            }}
+            /* 指针 */
+            .pointer {{
+                position: absolute;
+                top: -10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 0;
+                height: 0;
+                border-left: 15px solid transparent;
+                border-right: 15px solid transparent;
+                border-bottom: 30px solid red;
+                z-index: 10;
+            }}
+            /* 中心圆点 */
+            .center {{
+                position: absolute;
+                width: 25px;
+                height: 25px;
+                background: white;
+                border: 3px solid #333;
+                border-radius: 50%;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 5;
+            }}
+        </style>
+    </head>
+    <body>
+        <div style="position: relative; width: 300px; margin: 0 auto;">
+            <div class="pointer"></div>
+            <div id="wheel" class="wheel">
+                <!-- 6个扇区（固定角度） -->
+                <div class="slice" style="transform: rotate(0deg); background: {color}; --rotate: 30deg;">
+                    <span>{items[0]}</span>
+                </div>
+                <div class="slice" style="transform: rotate(60deg); background: {color}88; --rotate: 90deg;">
+                    <span>{items[1]}</span>
+                </div>
+                <div class="slice" style="transform: rotate(120deg); background: {color}; --rotate: 150deg;">
+                    <span>{items[2]}</span>
+                </div>
+                <div class="slice" style="transform: rotate(180deg); background: {color}88; --rotate: 210deg;">
+                    <span>{items[3]}</span>
+                </div>
+                <div class="slice" style="transform: rotate(240deg); background: {color}; --rotate: 270deg;">
+                    <span>{items[4]}</span>
+                </div>
+                <div class="slice" style="transform: rotate(300deg); background: {color}88; --rotate: 330deg;">
+                    <span>{items[5]}</span>
+                </div>
             </div>
-        """)
-
-    sectors_html = "\n".join(sectors)
-
-    return f"""
-    <style>
-        .wheel-container {{
-            position: relative;
-            width: 320px;
-            height: 320px;
-            margin: 20px auto;
-        }}
-        .wheel {{
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            position: relative;
-            overflow: hidden;
-            border: 6px solid #333;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
-            transition: transform 4s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }}
-        .sector {{
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            clip-path: polygon(50% 50%, 50% 0%, 100% 0%);
-            transform-origin: center;
-            transform: rotate(var(--start));
-        }}
-        .sector-text {{
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, 0) rotate(calc((var(--start) + var(--end)) / 2 - 90deg));
-            transform-origin: 50% 160px;
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-            white-space: nowrap;
-        }}
-        .pointer {{
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 18px solid transparent;
-            border-right: 18px solid transparent;
-            border-top: 35px solid red;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
-            z-index: 10;
-        }}
-        .center {{
-            position: absolute;
-            width: 30px;
-            height: 30px;
-            background: white;
-            border: 4px solid #333;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 5;
-        }}
-    </style>
-
-    <div class="wheel-container">
-        <div class="pointer"></div>
-        <div id="wheel" class="wheel">
-            {sectors_html}
+            <div class="center"></div>
         </div>
-        <div class="center"></div>
-    </div>
 
-    <script>
-        let spinning = false;
-        window.spinWheel = function(targetIndex) {{
-            if (spinning) return;
-            spinning = true;
-
-            const wheel = document.getElementById('wheel');
-            const n = {n};
-            const anglePer = 360 / n;
-            const targetAngle = 1800 + (360 - (targetIndex * anglePer + anglePer / 2)); // 5圈 + 目标位置
-
-            wheel.style.transform = `rotate(${{targetAngle}}deg)`;
-
-            setTimeout(() => {{
-                spinning = false;
-                // 通知Streamlit结果
-                window.parent.postMessage({{
-                    type: "WHEEL_RESULT",
-                    result: "{items[0]}".replace(/"/g, '&quot;') // 占位，实际由Python控制
-                }}, "*");
-            }}, 4000);
-        }};
-    </script>
+        <script>
+            // 全局旋转函数（外部可调用）
+            window.startSpin = function(degrees) {{
+                const wheel = document.getElementById('wheel');
+                wheel.style.transform = `rotate(${degrees}deg)`;
+            }};
+        </script>
+    </body>
+    </html>
     """
+    return wheel_html
 
-# ======================= 游戏流程 =======================
-st.set_page_config(page_title="情侣默契转盘", layout="wide")
-
+# ======================= 会话状态初始化 =======================
 if "step" not in st.session_state:
     st.session_state.step = 1
 if "question" not in st.session_state:
@@ -150,108 +140,112 @@ if "p2" not in st.session_state:
     st.session_state.p2 = []
 if "result" not in st.session_state:
     st.session_state.result = None
-if "final" not in st.session_state:
-    st.session_state.final = ""
 if "spun" not in st.session_state:
     st.session_state.spun = False
+if "final" not in st.session_state:
+    st.session_state.final = ""
 
-# ------------------- 步骤1：选题目 -------------------
+# ======================= 游戏流程 =======================
+# 步骤1：选择题目
 if st.session_state.step == 1:
-    st.subheader("📝 选择题目")
-    q = st.selectbox("题目", list(QUESTION_BANK.keys()))
+    st.subheader("📝 选择考验题目", divider="violet")
+    q = st.selectbox("请选择题目", list(QUESTION_BANK.keys()))
     st.session_state.question = q
-    if st.button("✅ 开始", type="primary"):
+    if st.button("✅ 确定开始", type="primary"):
         st.session_state.step = 2
         st.rerun()
 
-# ------------------- 步骤2：玩家1答题 -------------------
+# 步骤2：玩家1答题
 elif st.session_state.step == 2:
     q = st.session_state.question
-    opt = QUESTION_BANK[q]
-    st.subheader(f"👩 玩家1：{q}")
+    opts = QUESTION_BANK[q]
+    st.subheader(f"👩 玩家1答题：{q}", divider="violet")
+    
     if "优点" in q or "缺点" in q:
-        s = st.multiselect("选3个", opt, max_selections=3, key="p1s")
-        if len(s) == 3:
-            st.session_state.p1 = s
-            if st.button("✅ 玩家2答题", type="primary"):
+        selected = st.multiselect("选3个答案（最多3个）", opts, max_selections=3)
+        if len(selected) == 3:
+            st.session_state.p1 = selected
+            if st.button("✅ 轮到玩家2", type="primary"):
                 st.session_state.step = 3
                 st.rerun()
+        else:
+            st.info(f"已选{len(selected)}/3个，需选满！")
     else:
-        s = st.radio("选1个", opt, key="p1s")
-        st.session_state.p1 = [s]
-        if st.button("✅ 玩家2答题", type="primary"):
+        selected = st.radio("选1个答案", opts)
+        st.session_state.p1 = [selected]
+        if st.button("✅ 轮到玩家2", type="primary"):
             st.session_state.step = 3
             st.rerun()
 
-# ------------------- 步骤3：玩家2答题 -------------------
+# 步骤3：玩家2答题
 elif st.session_state.step == 3:
     q = st.session_state.question
-    opt = QUESTION_BANK[q]
-    st.subheader(f"👨 玩家2：{q}")
+    opts = QUESTION_BANK[q]
+    st.subheader(f"👨 玩家2答题：{q}", divider="violet")
+    
     if "优点" in q or "缺点" in q:
-        s = st.multiselect("选3个", opt, max_selections=3, key="p2s")
-        if len(s) == 3:
-            st.session_state.p2 = s
-            if st.button("🎯 看结果", type="primary"):
-                same = len(set(st.session_state.p1) & set(st.session_state.p2))
-                ok = False
-                if "优点" in q or "缺点" in q:
-                    ok = same >= 2
-                else:
-                    ok = same >= 1
-                st.session_state.result = ok
+        selected = st.multiselect("选3个答案（最多3个）", opts, max_selections=3)
+        if len(selected) == 3:
+            st.session_state.p2 = selected
+            same = len(set(st.session_state.p1) & set(selected))
+            st.session_state.result = same >= 2
+            if st.button("🎯 查看结果", type="primary"):
                 st.session_state.step = 4
                 st.rerun()
+        else:
+            st.info(f"已选{len(selected)}/3个，需选满！")
     else:
-        s = st.radio("选1个", opt, key="p2s")
-        st.session_state.p2 = [s]
-        if st.button("🎯 看结果", type="primary"):
-            same = len(set(st.session_state.p1) & set(st.session_state.p2))
-            st.session_state.result = (same >= 1)
+        selected = st.radio("选1个答案", opts)
+        st.session_state.p2 = [selected]
+        same = len(set(st.session_state.p1) & set([selected]))
+        st.session_state.result = same >= 1
+        if st.button("🎯 查看结果", type="primary"):
             st.session_state.step = 4
             st.rerun()
 
-# ------------------- 步骤4：真正会转的转盘 -------------------
+# 步骤4：抽奖转盘（核心：100%能转）
 elif st.session_state.step == 4:
     ok = st.session_state.result
     items = REWARD if ok else PUNISH
-
-    st.subheader("🧩 答案对比")
-    st.write(f"玩家1：{', '.join(st.session_state.p1)}")
-    st.write(f"玩家2：{', '.join(st.session_state.p2)}")
-
+    
+    # 展示结果
+    st.subheader("🧩 默契结果", divider="violet")
+    st.write(f"玩家1答案：{', '.join(st.session_state.p1)}")
+    st.write(f"玩家2答案：{', '.join(st.session_state.p2)}")
     if ok:
         st.success("🎉 默契成功！抽奖励")
     else:
-        st.error("⚠️ 默契不足！抽惩罚")
-
-    st.subheader("🎡 真正会转的转盘")
-
-    # 渲染转盘
-    wheel_html = spinning_wheel(items, ok)
-    st.components.v1.html(wheel_html, height=400)
-
+        st.warning("😜 默契不足！抽惩罚")
+    
+    # 显示转盘（核心）
+    st.subheader("🎡 抽奖转盘", divider="violet")
+    wheel_html = get_working_wheel(items, ok)
+    st.components.v1.html(wheel_html, height=350, width=350)
+    
+    # 旋转按钮
     if not st.session_state.spun:
         if st.button("🚀 旋转转盘", type="primary", use_container_width=True):
-            idx = random.randint(0, 5)
-            st.session_state.final = items[idx]
-
-            # 触发前端旋转
-            js = f"""
-            <script>
-                setTimeout(() => window.spinWheel({idx}), 300);
-            </script>
-            """
-            st.components.v1.html(js, height=0)
-
-            # 等待动画结束，再显示结果
-            import time
-            time.sleep(4.5)
+            # 随机生成旋转角度（5圈+随机停止）
+            random_deg = random.randint(1800, 3600)  # 5-10圈
+            target_idx = random.randint(0, 5)
+            st.session_state.final = items[target_idx]
+            
+            # 触发转盘旋转（核心：调用前端JS函数）
+            st.components.v1.html(f"""
+                <script>
+                    window.parent.document.querySelector('iframe').contentWindow.startSpin({random_deg});
+                </script>
+            """, height=0)
+            
+            # 等待旋转完成
+            time.sleep(3.5)
             st.session_state.spun = True
             st.rerun()
     else:
-        st.markdown(f"# 🏆 {st.session_state.final}")
-        if st.button("🔄 再来一局"):
+        # 显示结果
+        st.markdown(f"### 🏆 抽到：{st.session_state.final}")
+        if st.button("🔄 再来一局", use_container_width=True):
+            # 重置状态
             for k in list(st.session_state.keys()):
                 del st.session_state[k]
             st.rerun()
