@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import time
+import math
 
 # ======================= 题目库 =======================
 QUESTION_BANK = {
@@ -19,44 +20,36 @@ QUESTION_BANK = {
 REWARD = ["捏肩10分钟", "承包家务", "买奶茶", "抱抱5分钟", "今天听你的", "手写情书"]
 PUNISH = ["学小猫叫", "讲冷笑话", "深蹲10个", "夸对方10句", "洗水果", "模仿口头禅"]
 
-# ======================= 本地SVG可视化转盘（核心修复） =======================
+# ======================= 生成SVG转盘 =======================
 def get_svg_wheel(items, is_reward, rotation=0):
-    """生成本地SVG转盘（无外部依赖，100%显示）"""
-    # 颜色配置（奖励粉/惩罚橙）
     colors = [
         "#FF9BBB", "#FF789E", "#FF5C87", "#FF4473", "#FF2A5F", "#FF0040"
     ] if is_reward else [
         "#FFB380", "#FF9F66", "#FF8C4D", "#FF7833", "#FF6519", "#FF5100"
     ]
     
-    # 转盘尺寸
     size = 300
     radius = size // 2 - 10
     center = size // 2
-    
-    # 生成6个扇区的SVG路径
     sectors = []
-    angles = [0, 60, 120, 180, 240, 300]  # 6个扇区，每个60度
+    angles = [0, 60, 120, 180, 240, 300]
+    
     for i, (start_angle, text) in enumerate(zip(angles, items)):
         end_angle = start_angle + 60
+        start_rad = math.radians(start_angle)
+        end_rad = math.radians(end_angle)
         
-        # 计算扇区路径点
-        start_rad = start_angle * 3.1416 / 180
-        end_rad = end_angle * 3.1416 / 180
+        x1 = center + radius * math.cos(start_rad)
+        y1 = center - radius * math.sin(start_rad)
+        x2 = center + radius * math.cos(end_rad)
+        y2 = center - radius * math.sin(end_rad)
         
-        # 扇区路径
-        path = f"""M {center} {center} 
-                  L {center + radius * np.cos(start_rad)} {center - radius * np.sin(start_rad)} 
-                  A {radius} {radius} 0 0 1 {center + radius * np.cos(end_rad)} {center - radius * np.sin(end_rad)} 
-                  Z"""
+        path = f"M {center} {center} L {x1} {y1} A {radius} {radius} 0 0 1 {x2} {y2} Z"
         
-        # 文字位置（扇区中间）
         mid_angle = (start_angle + end_angle) / 2
-        mid_rad = mid_angle * 3.1416 / 180
-        text_x = center + (radius * 0.6) * np.cos(mid_rad)
-        text_y = center - (radius * 0.6) * np.sin(mid_rad)
-        
-        # 文字旋转（对齐扇区）
+        mid_rad = math.radians(mid_angle)
+        text_x = center + (radius * 0.6) * math.cos(mid_rad)
+        text_y = center - (radius * 0.6) * math.sin(mid_rad)
         text_rotate = mid_angle if mid_angle < 180 else mid_angle - 180
         
         sectors.append(f"""
@@ -67,32 +60,22 @@ def get_svg_wheel(items, is_reward, rotation=0):
             </text>
         """)
     
-    # 完整SVG（含旋转动画+指针）
     svg = f"""
-    <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">
-        <!-- 转盘容器（带旋转动画） -->
-        <g transform="rotate({rotation} {center} {center}) transition: transform 4s cubic-bezier(0.2, 0.8, 0.2, 1);">
+    <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" style="display:block; margin:0 auto;">
+        <g transform="rotate({rotation} {center} {center})">
             {''.join(sectors)}
-            <!-- 转盘边框 -->
             <circle cx="{center}" cy="{center}" r="{radius}" fill="none" stroke="#333" stroke-width="3"/>
         </g>
-        <!-- 指针 -->
         <polygon points="{center},{center-20} {center-10},{center} {center+10},{center}" 
                  fill="red" stroke="#000" stroke-width="1"/>
-        <!-- 中心圆点 -->
         <circle cx="{center}" cy="{center}" r="8" fill="#fff" stroke="#333" stroke-width="2"/>
     </svg>
     """
     return svg
 
-# ======================= 初始化numpy（内置计算） =======================
-import math
-import numpy as np  # Streamlit Cloud默认预装numpy，不会报错
-
-# ======================= 游戏流程 =======================
+# ======================= 初始化会话状态 =======================
 st.set_page_config(page_title="情侣默契转盘", layout="wide")
 
-# 会话状态初始化
 if "step" not in st.session_state:
     st.session_state.step = 1
 if "question" not in st.session_state:
@@ -152,9 +135,8 @@ elif st.session_state.step == 3:
         if len(s) == 3:
             st.session_state.p2 = s
             if st.button("🎯 查看默契结果", type="primary"):
-                # 计算相同答案数量
                 same = len(set(st.session_state.p1) & set(st.session_state.p2))
-                st.session_state.result = same >= 2  # 优点/缺点需≥2个相同
+                st.session_state.result = same >= 2
                 st.session_state.step = 4
                 st.rerun()
         else:
@@ -163,9 +145,8 @@ elif st.session_state.step == 3:
         s = st.radio("请选择1个答案", opt, key="p2s")
         st.session_state.p2 = [s]
         if st.button("🎯 查看默契结果", type="primary"):
-            # 计算相同答案数量
             same = len(set(st.session_state.p1) & set(st.session_state.p2))
-            st.session_state.result = same >= 1  # 其他题目需≥1个相同
+            st.session_state.result = same >= 1
             st.session_state.step = 4
             st.rerun()
 
@@ -174,7 +155,6 @@ elif st.session_state.step == 4:
     ok = st.session_state.result
     items = REWARD if ok else PUNISH
     
-    # 展示答案对比
     st.subheader("🧩 默契结果揭晓", divider="violet")
     col1, col2 = st.columns(2)
     with col1:
@@ -186,46 +166,34 @@ elif st.session_state.step == 4:
         else:
             st.warning("😜 默契不足！开启惩罚转盘～")
     
-    # 显示可视化SVG转盘（100%显示，无黑屏）
     st.subheader("🎡 可视化转盘抽奖", divider="violet")
-    wheel_placeholder = st.empty()
     
-    # 生成转盘SVG（带当前旋转角度）
-    svg = get_svg_wheel(items, ok, st.session_state.rotation)
-    wheel_placeholder.markdown(f"""
-        <div style="display: flex; justify-content: center;">
-            {svg}
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 未抽奖时显示旋转按钮
     if not st.session_state.spun:
+        # 初始转盘
+        svg = get_svg_wheel(items, ok, 0)
+        st.components.v1.html(svg, height=320)
+        
         if st.button("🚀 旋转转盘", type="primary", use_container_width=True):
-            # 模拟转盘旋转（8圈+随机停止角度）
             target_idx = random.randint(0, 5)
-            target_rotation = 8 * 360 + (360 - target_idx * 60)  # 转8圈后停在目标扇区
+            target_rotation = 8 * 360 + (360 - target_idx * 60)
             st.session_state.final = items[target_idx]
             
-            # 逐帧更新旋转角度（流畅动画）
             with st.spinner("转盘旋转中..."):
                 for r in range(0, target_rotation, 10):
-                    st.session_state.rotation = r
                     svg = get_svg_wheel(items, ok, r)
-                    wheel_placeholder.markdown(f"""
-                        <div style="display: flex; justify-content: center;">
-                            {svg}
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.components.v1.html(svg, height=320)
                     time.sleep(0.01)
             
             st.session_state.rotation = target_rotation
             st.session_state.spun = True
             st.rerun()
-    # 抽奖完成显示结果
     else:
+        # 旋转后的转盘
+        svg = get_svg_wheel(items, ok, st.session_state.rotation)
+        st.components.v1.html(svg, height=320)
         st.markdown(f"### 🏆 最终结果：\n## {st.session_state.final}")
+        
         if st.button("🔄 再来一局", use_container_width=True):
-            # 重置所有状态
             for k in list(st.session_state.keys()):
                 del st.session_state[k]
             st.rerun()
