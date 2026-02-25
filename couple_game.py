@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-import json
+import math
 
 # ---------- 题库配置（可后端编辑） ----------
 questions_db = [
@@ -179,6 +179,7 @@ if "stage" not in st.session_state:
     st.session_state.player2_answers = None      # 玩家2提交的答案
     st.session_state.is_correct = None           # 玩家2是否答对
     st.session_state.spin_pool = None             # 当前转盘池（奖励或惩罚列表）
+    st.session_state.spin_target_index = None     # 转盘目标索引（由Python随机生成）
 
 # ---------- 辅助函数 ----------
 def get_question_by_id(qid):
@@ -283,9 +284,8 @@ elif st.session_state.stage == "player2":
                 is_correct = check_answer(question, correct, player2)
                 st.session_state.is_correct = is_correct
                 st.session_state.spin_pool = rewards if is_correct else punishments
-                # 清除之前可能存在的转盘结果
-                if "wheel_result" in st.session_state:
-                    del st.session_state.wheel_result
+                # 清除之前的转盘目标
+                st.session_state.spin_target_index = None
                 st.session_state.stage = "spin"
                 st.rerun()
     else:
@@ -305,8 +305,7 @@ elif st.session_state.stage == "player2":
                 is_correct = check_answer(question, correct, player2)
                 st.session_state.is_correct = is_correct
                 st.session_state.spin_pool = rewards if is_correct else punishments
-                if "wheel_result" in st.session_state:
-                    del st.session_state.wheel_result
+                st.session_state.spin_target_index = None
                 st.session_state.stage = "spin"
                 st.rerun()
 
@@ -321,32 +320,23 @@ elif st.session_state.stage == "spin":
     else:
         st.error("❌ 很遗憾答错了，转动惩罚转盘吧～")
 
-    # 如果已经有转盘结果，直接显示
-    if "wheel_result" in st.session_state and st.session_state.wheel_result is not None:
-        result = st.session_state.wheel_result
-        st.markdown("---")
-        st.subheader(f"✨ 转盘停在了：**{result}**")
-        # 显示答案详情（可折叠）
-        question = st.session_state.selected_question
-        with st.expander("查看答案详情"):
-            st.write(f"**问题**：{question['question']}")
-            st.write(f"**玩家1的正确答案**：{st.session_state.correct_answers}")
-            st.write(f"**玩家2的答案**：{st.session_state.player2_answers}")
-        if st.button("🔄 再来一局", type="primary"):
-            # 重置所有状态
-            keys_to_del = ['stage', 'selected_category', 'selected_question', 'correct_answers',
-                           'player2_answers', 'is_correct', 'spin_pool', 'wheel_result']
-            for key in keys_to_del:
-                if key in st.session_state:
-                    del st.session_state[key]
+    # 如果还没有目标索引，显示“旋转转盘”按钮
+    if st.session_state.spin_target_index is None:
+        if st.button("🎲 旋转转盘", type="primary"):
+            # 随机选择一个目标索引
+            st.session_state.spin_target_index = random.randint(0, len(pool)-1)
             st.rerun()
     else:
-        # 还没有结果，显示可旋转的转盘
+        # 已有目标索引，显示Canvas转盘并自动播放动画
+        target_index = st.session_state.spin_target_index
+        options_json = str(pool)  # 简单列表转字符串，注意转义
+        # 为了安全传递，使用json.dumps
+        import json
         options_json = json.dumps(pool, ensure_ascii=False)
         html_code = f"""
         <div style="display: flex; flex-direction: column; align-items: center;">
             <canvas id="wheelCanvas" width="400" height="400" style="border: 2px solid #ccc; border-radius: 50%;"></canvas>
-            <button id="spinButton" style="margin-top: 20px; padding: 10px 30px; font-size: 18px; background-color: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer;">旋转转盘</button>
+            <div id="resultDisplay" style="margin-top: 20px; font-size: 20px; font-weight: bold;"></div>
         </div>
         <script>
             (function() {{
@@ -361,7 +351,6 @@ elif st.session_state.stage == "spin":
 
                 function drawWheel() {{
                     ctx.clearRect(0, 0, 400, 400);
-                    // 绘制扇形
                     for (let i = 0; i < total; i++) {{
                         let startAngle = i * anglePer + rotation;
                         let endAngle = (i + 1) * anglePer + rotation;
@@ -375,7 +364,6 @@ elif st.session_state.stage == "spin":
                         ctx.lineWidth = 2;
                         ctx.stroke();
 
-                        // 绘制文字（简单处理，只显示前4个字符，并适当旋转）
                         ctx.save();
                         ctx.translate(200, 200);
                         ctx.rotate(startAngle + anglePer / 2);
@@ -385,7 +373,6 @@ elif st.session_state.stage == "spin":
                         ctx.fillText(options[i].substring(0, 4), 120, 10);
                         ctx.restore();
                     }}
-                    // 绘制中心小圆和指针
                     ctx.beginPath();
                     ctx.arc(200, 200, 20, 0, 2 * Math.PI);
                     ctx.fillStyle = '#333';
@@ -394,7 +381,6 @@ elif st.session_state.stage == "spin":
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // 绘制指针（朝上的三角形）
                     ctx.beginPath();
                     ctx.moveTo(200, 30);
                     ctx.lineTo(185, 10);
@@ -408,62 +394,76 @@ elif st.session_state.stage == "spin":
                 }}
                 drawWheel();
 
-                let spinning = false;
-                document.getElementById('spinButton').addEventListener('click', function() {{
-                    if (spinning) return;
-                    spinning = true;
+                // 目标索引（由Python传入）
+                const targetIndex = {target_index};
+                // 计算目标旋转角度
+                const targetAngle = (targetIndex + 0.5) * anglePer;
+                const offset = Math.PI / 2;  // 指针朝北需要的偏移
+                let targetRotation = targetAngle + offset;
+                targetRotation = targetRotation % (2 * Math.PI);
+                let currentRotation = rotation % (2 * Math.PI);
+                let delta = targetRotation - currentRotation;
+                if (delta < 0) delta += 2 * Math.PI;
+                const spins = 10 + Math.floor(Math.random() * 5);
+                delta += spins * 2 * Math.PI;
 
-                    // 随机选择最终停留的选项索引
-                    const targetIndex = Math.floor(Math.random() * total);
-                    // 目标扇区中间的角度（相对于正东，因为rotation=0时0度是正东）
-                    const targetAngle = (targetIndex + 0.5) * anglePer;
-                    // 偏移量：让指针指向正北，即旋转后指针方向 = rotation - 90°（因为指针画在正北，但0度是正东）
-                    // 设指针方向为 dir = rotation - Math.PI/2。我们希望 dir % (2pi) = targetAngle
-                    // 所以 rotation = targetAngle + Math.PI/2 + 2pi*k
-                    const offset = Math.PI / 2;  // 使指针指向正北的偏移量
-                    // 当前rotation的指针方向 currentDir = rotation - offset
-                    // 目标指针方向 targetDir = targetAngle
-                    // 需要增加的旋转 delta = targetAngle + offset - rotation + 2pi * spins
-                    let targetRotation = targetAngle + offset;
-                    // 将targetRotation标准化到0~2pi
-                    targetRotation = targetRotation % (2 * Math.PI);
-                    let currentRotation = rotation % (2 * Math.PI);
-                    let delta = targetRotation - currentRotation;
-                    if (delta < 0) delta += 2 * Math.PI;
-                    // 加上多圈旋转（至少10圈，增加随机感）
-                    const spins = 10 + Math.floor(Math.random() * 5);
-                    delta += spins * 2 * Math.PI;
+                const startRotation = rotation;
+                const startTime = performance.now();
+                const duration = 2000; // 2秒
 
-                    const startRotation = rotation;
-                    const startTime = performance.now();
-                    const duration = 2000; // 2秒
+                function animate(now) {{
+                    const elapsed = now - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    rotation = startRotation + easeProgress * delta;
+                    drawWheel();
 
-                    function animate(now) {{
-                        const elapsed = now - startTime;
-                        const progress = Math.min(elapsed / duration, 1);
-                        // 缓动函数 easeOutCubic
-                        const easeProgress = 1 - Math.pow(1 - progress, 3);
-                        rotation = startRotation + easeProgress * delta;
-                        drawWheel();
-
-                        if (progress < 1) {{
-                            requestAnimationFrame(animate);
-                        }} else {{
-                            spinning = false;
-                            // 动画完成，将结果发送给Streamlit
-                            const result = options[targetIndex];
-                            if (window.Streamlit) {{
-                                window.Streamlit.setComponentValue(result);
-                            }}
-                        }}
+                    if (progress < 1) {{
+                        requestAnimationFrame(animate);
+                    }} else {{
+                        // 动画结束，显示结果
+                        document.getElementById('resultDisplay').innerText = '✨ 结果：' + options[targetIndex];
                     }}
-                    requestAnimationFrame(animate);
-                }});
+                }}
+                requestAnimationFrame(animate);
             }})();
         </script>
         """
-        # 使用components.html并设置key，当JS调用setComponentValue时，结果会存入st.session_state.wheel_result
-        st.components.v1.html(html_code, height=500, key="wheel_result")
+        st.components.v1.html(html_code, height=500)
+
+        # 添加“查看结果”按钮，点击后进入结果阶段
+        if st.button("📋 查看结果", type="primary"):
+            st.session_state.stage = "result"
+            st.rerun()
+
+# ---------- 结果显示 ----------
+elif st.session_state.stage == "result":
+    st.subheader("🏆 游戏结果")
+
+    # 显示答案详情
+    question = st.session_state.selected_question
+    with st.expander("查看答案详情", expanded=True):
+        st.write(f"**问题**：{question['question']}")
+        st.write(f"**玩家1的正确答案**：{st.session_state.correct_answers}")
+        st.write(f"**玩家2的答案**：{st.session_state.player2_answers}")
+
+    # 显示转盘结果（从session_state中获取目标索引对应的文本）
+    if st.session_state.spin_target_index is not None:
+        pool = st.session_state.spin_pool
+        result_text = pool[st.session_state.spin_target_index]
+        if st.session_state.is_correct:
+            st.success(f"✅ 奖励：**{result_text}**")
+        else:
+            st.error(f"❌ 惩罚：**{result_text}**")
+
+    if st.button("🔄 再来一局", type="primary"):
+        # 重置所有状态
+        keys_to_del = ['stage', 'selected_category', 'selected_question', 'correct_answers',
+                       'player2_answers', 'is_correct', 'spin_pool', 'spin_target_index']
+        for key in keys_to_del:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
 
 # 底部说明
 st.markdown("---")
